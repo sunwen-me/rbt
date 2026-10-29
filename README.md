@@ -95,7 +95,7 @@ capability probes returned false on this ROS installation. This is not a
 QCS8550 measurement. See the [full report, ranges and per-trial data](benchmarks/ros2_transport/results/2026-10-29/README.md)
 and [reproduction instructions](benchmarks/ros2_transport/README.md).
 
-**RBT's practical advantage for native sensor IPC:** its existing
+**RBT's practical advantage for native cross-process sensor transport:** its existing
 [`Image` and `PointCloud` schemas](types/sensor.rbt) support contiguous,
 variable-length payloads within a configured capacity, with direct
 [loan/receive access](docs/cpp-sdk.md#data-plane-ownership). Applications can
@@ -104,6 +104,14 @@ standard `sensor_msgs` lack native loan support in the tested ROS 2/Fast DDS
 configuration. RBT's schemas have their own layout; driver or format
 conversion may still copy data. The performance table uses matched custom
 messages on both stacks; standard-message CPU/memory was not measured.
+
+ROS 2 also supports **intra-process zero-copy**: compatible nodes in the same
+process can transfer message ownership through `rclcpp`, including standard
+sensor messages, without native DDS loans ([official image example](https://github.com/ros2/demos/blob/lyrical/intra_process_demo/include/image_pipeline/camera_node.hpp)).
+That path depends on the publish/subscription ownership pattern and graph.
+The two-process benchmark above explicitly disables `use_intra_process_comms`
+and does not measure this deployment. A false middleware `can_loan` result
+does not rule out ROS 2 intra-process zero-copy.
 
 ## Install and run the first graph
 

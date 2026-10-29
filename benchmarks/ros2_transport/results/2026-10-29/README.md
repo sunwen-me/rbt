@@ -101,8 +101,21 @@ installation, with loans enabled. That probe does not transfer samples or
 measure resources. The successful fixed-array loan results do not imply
 that standard sensor messages automatically use this zero-copy path.
 
-This shows a native-schema and API usability advantage for RBT in this tested
-setup. RBT's [`Image` and `PointCloud` schemas](../../../../types/sensor.rbt)
+ROS 2 has a separate **intra-process** zero-copy path in `rclcpp`: nodes in
+the same process/context can transfer message ownership with compatible
+publish/subscription patterns, including standard sensor messages. The
+[official image example](https://github.com/ros2/demos/blob/lyrical/intra_process_demo/include/image_pipeline/camera_node.hpp)
+enables `use_intra_process_comms(true)` and publishes
+`sensor_msgs::msg::Image::UniquePtr` with `std::move`. This path is independent
+of native middleware loan support; `can_loan=false` does not exclude it.
+Fan-out, ownership choices and external subscribers affect the complete copy
+behavior ([rclcpp 32.0.2 publisher implementation](https://github.com/ros2/rclcpp/blob/32.0.2/rclcpp/include/rclcpp/publisher.hpp)).
+This experiment uses separate processes and explicitly sets
+`use_intra_process_comms(false)`; intra-process resource usage was not
+measured. A same-process comparison would be a separate deployment experiment.
+
+This shows a native-schema and API usability advantage for RBT for the tested
+**cross-process** setup. RBT's [`Image` and `PointCloud` schemas](../../../../types/sensor.rbt)
 are header-plus-contiguous-slice messages, and its [C++ SDK ownership model](../../../../docs/cpp-sdk.md)
 exposes direct fixed-message and slice loan/receive access ([C++ stream API](../../../../sdk/cpp/include/rbt/stream.hpp)).
 Slice payload length can vary per send within the publisher's configured
