@@ -1,0 +1,341 @@
+{
+  "schema_version": 1,
+  "paper": {
+    "product_version": "0.8.0",
+    "scope": "通用机器人系统设计与软件工程验证",
+    "author_placeholder": "RBT 项目组",
+    "evidence_snapshot_date": "2026-10-20"
+  },
+  "acceptance": {
+    "full_software_gate": {
+      "baseline_version": "0.7.0",
+      "status": "PASS",
+      "exit_code": 0,
+      "completed_utc": "2026-10-19T18:55:18.424366+00:00",
+      "wall_seconds": 8165.669246416999,
+      "labels_passed": 50,
+      "labels_total": 50,
+      "source_files_checked": 350,
+      "source_drift_count": 0,
+      "source_manifest_sha256": "667784d52ec862b94a358a31bbbdf1e4c9525797128a2ee0568d9848a7aa8efd",
+      "evidence": [
+        {
+          "path": "target/tf-systemd-full-20261019T163912Z/result.json",
+          "sha256": "d907e16bbdfd1d03dce039c4a4768c5ffca64c153a4edeb4420d7b1193e3e62f"
+        },
+        {
+          "path": "target/tf-systemd-full-20261019T163912Z/root-acceptance-summary.json",
+          "sha256": "8243fca43406c65b08816ca797f88b25422f55acde66816a415821e9f3b243b9"
+        },
+        {
+          "path": "target/tf-systemd-full-20261019T163912Z/source-files-sha256.json",
+          "sha256": "667784d52ec862b94a358a31bbbdf1e4c9525797128a2ee0568d9848a7aa8efd"
+        }
+      ]
+    },
+    "release_verification": {
+      "version": "0.8.0",
+      "status": "PASS",
+      "exit_code": 0,
+      "accepted_by_root": true,
+      "completed_utc": "2026-10-20T01:43:22.695072+00:00",
+      "wall_seconds": 1297.6657443840013,
+      "source_drift_before": 0,
+      "source_drift_after": 0,
+      "source_manifest_sha256": "53f436f8f566918403151a7c25107f0c003c3483eec95d4f4544544600f1a9d1",
+      "gates": [
+        {
+          "name": "verify-tf-quick",
+          "status": "PASS",
+          "wall_seconds": 524.4072056109981
+        },
+        {
+          "name": "tf-packages",
+          "status": "PASS",
+          "wall_seconds": 248.91581840300205
+        },
+        {
+          "name": "python-component-quick",
+          "status": "PASS",
+          "wall_seconds": 358.5359805370026
+        },
+        {
+          "name": "dx-quick",
+          "status": "PASS",
+          "wall_seconds": 42.77001788299822
+        },
+        {
+          "name": "time-external-consumers",
+          "status": "PASS",
+          "wall_seconds": 122.8925559240015
+        }
+      ],
+      "evidence": [
+        {
+          "path": "target/tf-release-verification/run-20261020T012144Z-522975/result.json",
+          "sha256": "242468e203f764e75e792c576d2cf5730ea8183f16c0f2e62a1478d9a46a9c20"
+        },
+        {
+          "path": "target/tf-release-verification/run-20261020T012144Z-522975/source-files-sha256.json",
+          "sha256": "53f436f8f566918403151a7c25107f0c003c3483eec95d4f4544544600f1a9d1"
+        }
+      ]
+    }
+  },
+  "local_lookup_benchmark": {
+    "status": "PASS",
+    "build_mode": "debug",
+    "queries_per_case": 10000,
+    "transport_included": false,
+    "binary_sha256": "cb4b27a9898e52c07265839ae6b4302f5788b783586da67260270bda24c548d5",
+    "source_files": {
+      "Cargo.lock": "7194b40c6092970365eea3ee72073be8ca76f246429adf9d1dbe9a7eb7eccb0b",
+      "crates/rbt-tf-tools/Cargo.toml": "ff11c54d4d87a23133f763806a1b6cc588ce972b922e0d2081cc077fb5772027",
+      "crates/rbt-tf-tools/src/main.rs": "23e69b633a886eaae890666fcae4ee16502e5860809f067fd38151e59ecf7f57",
+      "scripts/benchmark_tf.sh": "c8c78e18adef6d496a5a194744d3b3ceb3b08acca4cc9020c2e4be438c114e1f"
+    },
+    "metadata_gaps": [
+      "cpu",
+      "kernel",
+      "system_load"
+    ],
+    "cases": [
+      {
+        "name": "static_1_edge",
+        "queries": 10000,
+        "correct_results": 10000,
+        "transport_included": false,
+        "p50_latency_ns": 8532,
+        "p90_latency_ns": 8805,
+        "p99_latency_ns": 16693,
+        "max_latency_ns": 94032,
+        "queries_per_second": 121497.7912369791
+      },
+      {
+        "name": "static_3_edge",
+        "queries": 10000,
+        "correct_results": 10000,
+        "transport_included": false,
+        "p50_latency_ns": 11916,
+        "p90_latency_ns": 12032,
+        "p99_latency_ns": 17132,
+        "max_latency_ns": 366761,
+        "queries_per_second": 82787.01286683205
+      },
+      {
+        "name": "static_10_edge",
+        "queries": 10000,
+        "correct_results": 10000,
+        "transport_included": false,
+        "p50_latency_ns": 30549,
+        "p90_latency_ns": 30901,
+        "p99_latency_ns": 38945,
+        "max_latency_ns": 73839,
+        "queries_per_second": 32385.148015671304
+      },
+      {
+        "name": "history_interpolation",
+        "queries": 10000,
+        "correct_results": 10000,
+        "transport_included": false,
+        "p50_latency_ns": 8303,
+        "p90_latency_ns": 8397,
+        "p99_latency_ns": 12874,
+        "max_latency_ns": 65263,
+        "queries_per_second": 118508.87768964193
+      }
+    ],
+    "evidence": [
+      {
+        "path": "target/tf-systemd-full-20261019T163912Z/logs/tf-full-20261019T163912Z-13601/benchmark/20261019T181822Z-399200/summary.json",
+        "sha256": "baeaca054fc0cc495cbc5bf428f01cda442c5d32485d33d9bc68e6f9bd1e92ae"
+      },
+      {
+        "path": "target/tf-systemd-full-20261019T163912Z/logs/tf-full-20261019T163912Z-13601/benchmark/20261019T181822Z-399200/run-metadata.json",
+        "sha256": "9dc487198a9eab43a7d5ddf4b8e9e7d326944ff48aee351b62bfc26b82fc7c8d"
+      }
+    ]
+  },
+  "process_runs": [
+    {
+      "name": "provider_replacement",
+      "mode": "replacement",
+      "status": "PASS",
+      "actual_wall_seconds": 1383.388,
+      "fixture": "synthetic software fixture; not physical measurement",
+      "evidence": {
+        "path": "target/tf-process-logs/1792433903-399236-replacement/summary.json",
+        "sha256": "1df1fe165fe4028c6a73ff4b6e6b38290e89e4c4d7557c861133ce456be307ce"
+      },
+      "consumer_results": {
+        "lookup_attempts": 47,
+        "correct_results": 47,
+        "lookup_errors": 0
+      },
+      "resources": {
+        "checks_passed": true,
+        "retained_fd_growth": 0,
+        "absolute_peak_per_process": {
+          "fds": 96,
+          "rss_bytes": 20193280,
+          "threads": 21
+        },
+        "growth": {
+          "peak_fd_growth_reported_only": 9,
+          "rss_bytes": 1654784,
+          "threads": 0
+        }
+      },
+      "requested_replacements": 100,
+      "completed_replacements": 100,
+      "fresh_dynamic_ids_observed": 101,
+      "fresh_capability_ids_observed": {
+        "dynamic_id": 101,
+        "snapshot_id": 101,
+        "static_update_id": 101
+      },
+      "lifecycle_exact": true
+    },
+    {
+      "name": "composer_restart",
+      "mode": "composer-restart",
+      "status": "PASS",
+      "actual_wall_seconds": 168.629,
+      "fixture": "synthetic software fixture; not physical measurement",
+      "evidence": {
+        "path": "target/tf-process-logs/1792435288-411119-composer-restart/summary.json",
+        "sha256": "b961fb925e43da776cea6b1123c7d999b5825ce5906b2b6e8f25f391d73cbdf6"
+      },
+      "consumer_results": {
+        "lookup_attempts": 322,
+        "correct_results": 322,
+        "lookup_errors": 0
+      },
+      "resources": {
+        "checks_passed": true,
+        "retained_fd_growth": 2,
+        "absolute_peak_per_process": {
+          "fds": 95,
+          "rss_bytes": 18677760,
+          "threads": 21
+        },
+        "growth": {
+          "peak_fd_growth_reported_only": 4,
+          "rss_bytes": 131072,
+          "threads": 0
+        }
+      },
+      "requested_composer_restarts": 10,
+      "completed_composer_restarts": 10,
+      "provider_consumer_lifecycle_stable": true,
+      "provider_consumer_shutdown_lifecycle_complete": true
+    },
+    {
+      "name": "combined_outage",
+      "mode": "combined-outage",
+      "status": "PASS",
+      "actual_wall_seconds": 330.057,
+      "fixture": "synthetic software fixture; not physical measurement",
+      "evidence": {
+        "path": "target/tf-process-logs/1792435457-411562-combined-outage/summary.json",
+        "sha256": "f301e75468c73b484b1bbfbb7e0175a6f7a3fafce8ec517c8703b6fa3049745e"
+      },
+      "consumer_results": {
+        "lookup_attempts": 440,
+        "correct_results": 440,
+        "lookup_errors": 0
+      },
+      "resources": {
+        "checks_passed": true,
+        "retained_fd_growth": 2,
+        "absolute_peak_per_process": {
+          "fds": 125,
+          "rss_bytes": 21278720,
+          "threads": 22
+        },
+        "growth": {
+          "peak_fd_growth_reported_only": 4,
+          "rss_bytes": 1703936,
+          "threads": 0
+        }
+      },
+      "requested_duration_seconds": 300,
+      "provider_replacements": 2,
+      "composer_restarts": 2,
+      "minimum_300_second_soak": true,
+      "overlapping_outage_verified": true,
+      "bounded_native_resources": true,
+      "provider_observed_control_queue_pressure": true,
+      "lifecycle_exact": true,
+      "shutdown_lifecycle_exact": true
+    },
+    {
+      "name": "mixed_soak",
+      "mode": "soak",
+      "status": "PASS",
+      "actual_wall_seconds": 329.892,
+      "fixture": "synthetic software fixture; not physical measurement",
+      "evidence": {
+        "path": "target/tf-process-logs/1792435788-415589-soak/summary.json",
+        "sha256": "5fa5a8422cb7ba670cfa72126475c885cdd7891a7b4f02d5c4112f4f50ea64ec"
+      },
+      "consumer_results": {
+        "lookup_attempts": 560,
+        "correct_results": 560,
+        "lookup_errors": 0
+      },
+      "resources": {
+        "checks_passed": true,
+        "retained_fd_growth": 2,
+        "absolute_peak_per_process": {
+          "fds": 126,
+          "rss_bytes": 20774912,
+          "threads": 22
+        },
+        "growth": {
+          "peak_fd_growth_reported_only": 1,
+          "rss_bytes": 1183744,
+          "threads": 0
+        }
+      },
+      "requested_duration_seconds": 300,
+      "provider_replacements": 1,
+      "composer_restarts": 1,
+      "minimum_300_second_soak": true,
+      "overlapping_outage_verified": true,
+      "bounded_native_resources": true,
+      "provider_observed_control_queue_pressure": true,
+      "lifecycle_exact": true,
+      "shutdown_lifecycle_exact": true
+    }
+  ],
+  "boundaries": [
+    "全量软件门禁使用 0.7.0 预发布源码快照；0.8.0 发布制品随后通过独立的五项复核。",
+    "四项进程验证均使用合成软件夹具，不是物理测量。",
+    "物理相机 TF 和真实动态位姿设备未运行。",
+    "通用 TF 消息的 MCAP 录制回放未验证。",
+    "Debug 本地查询基准不包含传输，不能据此声称硬实时能力或跨框架性能优势。"
+  ],
+  "external_references": [
+    {
+      "title": "Robot Operating System 2: Design, architecture, and uses in the wild",
+      "url": "https://doi.org/10.1126/scirobotics.abm6074"
+    },
+    {
+      "title": "iceoryx2 v0.10.0 README",
+      "url": "https://raw.githubusercontent.com/eclipse-iceoryx/iceoryx2/v0.10.0/README.md"
+    },
+    {
+      "title": "ROS 2 managed nodes design",
+      "url": "https://design.ros2.org/articles/node_lifecycle.html"
+    },
+    {
+      "title": "ROS 2 Jazzy tf2 documentation",
+      "url": "https://github.com/ros2/ros2_documentation/blob/jazzy/source/Concepts/Intermediate/About-Tf2.rst"
+    },
+    {
+      "title": "MCAP format specification",
+      "url": "https://mcap.dev/spec"
+    }
+  ]
+}

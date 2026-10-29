@@ -1,0 +1,288 @@
+// Copyright (c) 2025 Contributors to the Eclipse Foundation
+//
+// See the NOTICE file(s) distributed with this work for additional
+// information regarding copyright ownership.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache Software License 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license
+// which is available at https://opensource.org/licenses/MIT.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! # Example
+//!
+//! ```
+//! use iceoryx2::prelude::*;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//! let req_res = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .request_response::<u64, u64>()
+//!     .open_or_create()?;
+//!
+//! println!("name: {:?}", req_res.name());
+//! println!("service id: {:?}", req_res.service_hash());
+//! println!("request type details: {:?}", req_res.static_config().request_message_type_details());
+//! println!("response type details: {:?}", req_res.static_config().response_message_type_details());
+//! println!("max active requests per client: {:?}", req_res.static_config().max_active_requests_per_client());
+//! println!("max response buffer size: {:?}", req_res.static_config().max_response_buffer_size());
+//! println!("max borrowed responses per pending responses: {:?}", req_res.static_config().max_borrowed_responses_per_pending_response());
+//! println!("max servers: {:?}", req_res.static_config().max_clients());
+//! println!("max clients: {:?}", req_res.static_config().max_servers());
+//! println!("max nodes: {:?}", req_res.static_config().max_nodes());
+//! println!("request safe overflow: {:?}", req_res.static_config().has_safe_overflow_for_requests());
+//! println!("response safe overflow: {:?}", req_res.static_config().has_safe_overflow_for_responses());
+//!
+//! # Ok(())
+//! # }
+//! ```
+
+extern crate alloc;
+
+use super::{client::PortFactoryClient, nodes, server::PortFactoryServer};
+use crate::{
+    identifiers::UniqueServiceId,
+    node::NodeListFailure,
+    prelude::AttributeSet,
+    service::{
+        self, NoResource, ServiceState, SharedServiceState, dynamic_config,
+        port_factory::blocking_cleanup_dead_nodes_in_service, service_hash::ServiceHash,
+        service_name::ServiceName, static_config,
+    },
+};
+use alloc::sync::Arc;
+use core::ptr::NonNull;
+use core::{fmt::Debug, marker::PhantomData};
+use iceoryx2_bb_elementary::CallbackProgression;
+use iceoryx2_bb_elementary_traits::non_null::NonNullCompat;
+use iceoryx2_bb_elementary_traits::testing::abandonable::Abandonable;
+use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+use iceoryx2_cal::dynamic_storage::DynamicStorage;
+
+/// The factory for
+/// [`MessagingPattern::RequestResponse`](crate::service::messaging_pattern::MessagingPattern::RequestResponse).
+/// It can acquire dynamic and static service informations and create
+/// [`crate::port::client::Client`]
+/// or [`crate::port::server::Server`] ports.
+#[derive(Debug)]
+pub struct PortFactory<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> {
+    pub(crate) service: SharedServiceState<Service, NoResource>,
+    _request_payload: PhantomData<RequestPayload>,
+    _request_header: PhantomData<RequestHeader>,
+    _response_payload: PhantomData<ResponsePayload>,
+    _response_header: PhantomData<ResponseHeader>,
+}
+
+unsafe impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> Send for PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+}
+
+unsafe impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> Sync for PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+}
+
+impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> Abandonable
+    for PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+    unsafe fn abandon_in_place(mut this: NonNull<Self>) {
+        let this = unsafe { this.as_mut() };
+        unsafe { SharedServiceState::abandon_in_place(NonNull::iox2_from_mut(&mut this.service)) };
+    }
+}
+
+impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> Clone for PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+    fn clone(&self) -> Self {
+        Self {
+            service: self.service.clone(),
+            _request_payload: PhantomData,
+            _request_header: PhantomData,
+            _response_payload: PhantomData,
+            _response_header: PhantomData,
+        }
+    }
+}
+
+impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> crate::service::port_factory::PortFactory
+    for PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+    type Service = Service;
+    type StaticConfig = static_config::request_response::StaticConfig;
+    type DynamicConfig = dynamic_config::request_response::DynamicConfig;
+
+    fn name(&self) -> &ServiceName {
+        self.service.static_config().name()
+    }
+
+    fn unique_service_id(&self) -> UniqueServiceId {
+        self.service.static_config().unique_service_id()
+    }
+
+    fn service_hash(&self) -> &ServiceHash {
+        self.service.static_config().service_hash()
+    }
+
+    fn attributes(&self) -> &AttributeSet {
+        self.service.static_config().attributes()
+    }
+
+    fn static_config(&self) -> &Self::StaticConfig {
+        self.service.static_config().request_response()
+    }
+
+    fn dynamic_config(&self) -> &Self::DynamicConfig {
+        self.service.dynamic_storage().get().request_response()
+    }
+
+    fn nodes<F: FnMut(crate::node::NodeState<Service>) -> CallbackProgression>(
+        &self,
+        callback: F,
+    ) -> Result<(), NodeListFailure> {
+        nodes(
+            self.service.dynamic_storage().get(),
+            self.service.shared_node().config(),
+            callback,
+        )
+    }
+}
+
+impl<
+    Service: service::Service,
+    RequestPayload: Debug + ZeroCopySend + ?Sized,
+    RequestHeader: Debug + ZeroCopySend,
+    ResponsePayload: Debug + ZeroCopySend + ?Sized,
+    ResponseHeader: Debug + ZeroCopySend,
+> PortFactory<Service, RequestPayload, RequestHeader, ResponsePayload, ResponseHeader>
+{
+    pub(crate) fn new(service: ServiceState<Service, NoResource>) -> Self {
+        let shared_node = service.shared_node.clone();
+        let new_self = Self {
+            service: SharedServiceState {
+                state: Arc::new(service),
+            },
+            _request_payload: PhantomData,
+            _request_header: PhantomData,
+            _response_payload: PhantomData,
+            _response_header: PhantomData,
+        };
+
+        if shared_node
+            .config()
+            .global
+            .service
+            .cleanup_dead_nodes_on_open
+        {
+            blocking_cleanup_dead_nodes_in_service(
+                &new_self,
+                shared_node.config().global.creation_timeout,
+            );
+        }
+
+        new_self
+    }
+
+    /// Returns a [`PortFactoryClient`] to create a new
+    /// [`crate::port::client::Client`] port.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use iceoryx2::prelude::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// let request_response = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    ///     .request_response::<u64, u64>()
+    ///     .open_or_create()?;
+    ///
+    /// let client = request_response
+    ///         .client_builder()
+    ///         .create()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn client_builder(
+        &self,
+    ) -> PortFactoryClient<
+        '_,
+        Service,
+        RequestPayload,
+        RequestHeader,
+        ResponsePayload,
+        ResponseHeader,
+    > {
+        PortFactoryClient::new(self)
+    }
+
+    /// Returns a [`PortFactoryServer`] to create a new
+    /// [`crate::port::server::Server`] port.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use iceoryx2::prelude::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// let request_response = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    ///     .request_response::<u64, u64>()
+    ///     .open_or_create()?;
+    ///
+    /// let client = request_response
+    ///         .server_builder()
+    ///         .create()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn server_builder(
+        &self,
+    ) -> PortFactoryServer<
+        '_,
+        Service,
+        RequestPayload,
+        RequestHeader,
+        ResponsePayload,
+        ResponseHeader,
+    > {
+        PortFactoryServer::new(self)
+    }
+}

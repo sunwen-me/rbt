@@ -1,0 +1,471 @@
+// Copyright (c) 2024 Contributors to the Eclipse Foundation
+//
+// See the NOTICE file(s) distributed with this work for additional
+// information regarding copyright ownership.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache Software License 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license
+// which is available at https://opensource.org/licenses/MIT.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Attributes can be defined for a [`crate::service::Service`]. They define features that do not
+//! change during the lifetime of the [`crate::service::Service`] and are accessible by anyone that
+//! is allowed to open the [`crate::service::Service`].
+//!
+//! ## Create Service With Attributes
+//!
+//! ```
+//! use iceoryx2::prelude::*;
+//! use iceoryx2::config::Config;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//!
+//! let service_creator = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .publish_subscribe::<u64>()
+//!     .create_with_attributes(
+//!         // all attributes that are defined when creating a new service are stored in the
+//!         // static config of the service
+//!         &AttributeSpecifier::new()
+//!             .define(&"some attribute key".try_into()?, &"some attribute value".try_into()?)?
+//!             .define(&"some attribute key".try_into()?, &"another attribute value for the same key".try_into()?)?
+//!             .define(&"another key".try_into()?, &"another value".try_into()?)?
+//!     )?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Open Service With Attribute Requirements
+//!
+//! ```no_run
+//! use iceoryx2::prelude::*;
+//! use iceoryx2::config::Config;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//!
+//! let service_open = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .publish_subscribe::<u64>()
+//!     .open_with_attributes(
+//!         // All attributes that are defined when opening a new service interpreted as
+//!         // requirements.
+//!         // If a attribute key as either a different value or is not set at all, the service
+//!         // cannot be opened. If not specific attributes are required one can skip them completely.
+//!         &AttributeVerifier::new()
+//!             .require(&"another key".try_into()?, &"another value".try_into()?)?
+//!             .require_key(&"some attribute key".try_into()?)?
+//!     )?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## List Attributes Of A Service
+//!
+//! ```no_run
+//! use iceoryx2::prelude::*;
+//! use iceoryx2::config::Config;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//! let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .publish_subscribe::<u64>()
+//!     .open()?;
+//!
+//! for attribute in service.attributes().iter() {
+//!     println!("key {}, value {}", attribute.key(), attribute.value());
+//! }
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## List Attributes Of All Services In Discovery
+//!
+//! ```
+//! use iceoryx2::prelude::*;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let services = ipc::Service::list(Config::global_config(), |service| {
+//!     println!("\n{:#?}", &service.static_details.attributes());
+//!     CallbackProgression::Continue
+//! })?;
+//! # Ok(())
+//! # }
+//! ```
+
+use core::ops::Deref;
+
+use iceoryx2_bb_container::vector::*;
+use iceoryx2_bb_derive_macros::ZeroCopySend;
+use iceoryx2_bb_elementary::CallbackProgression;
+use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+use iceoryx2_log::fail;
+use serde::{Deserialize, Serialize};
+
+use crate::constants::MAX_ATTRIBUTES;
+
+mod key {
+
+    use core::hash::Hash;
+    use core::hash::Hasher;
+
+    use alloc::string::String;
+
+    use iceoryx2_bb_container::semantic_string;
+    use iceoryx2_bb_container::semantic_string::SemanticString;
+    use iceoryx2_bb_derive_macros::ZeroCopySend;
+    use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+
+    use crate::constants::MAX_ATTRIBUTE_KEY_LENGTH;
+
+    semantic_string! {
+      /// Fixed string for service attribute keys.
+      name: FixedString,
+      capacity: MAX_ATTRIBUTE_KEY_LENGTH,
+      invalid_content: |string: &[u8]| {
+        // empty keys are not allowed to be empty
+        string.is_empty()
+      },
+      invalid_characters: |_string: &[u8]| {
+         false
+      },
+      normalize: |this: &FixedString| {
+          *this
+      }
+    }
+}
+
+/// Key type used for service attributes.
+pub type AttributeKey = key::FixedString;
+
+/// Module containing the value type used for service attributes.
+mod value {
+
+    use core::hash::Hash;
+    use core::hash::Hasher;
+
+    use alloc::string::String;
+
+    use iceoryx2_bb_container::semantic_string;
+    use iceoryx2_bb_container::semantic_string::SemanticString;
+    use iceoryx2_bb_derive_macros::ZeroCopySend;
+    use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+
+    use crate::constants::MAX_ATTRIBUTE_VALUE_LENGTH;
+
+    semantic_string! {
+      /// Fixed string for service attribute values.
+      name: FixedString,
+      capacity: MAX_ATTRIBUTE_VALUE_LENGTH,
+      invalid_content: |string: &[u8]| {
+        // empty keys are not allowed to be empty
+        string.is_empty()
+      },
+      invalid_characters: |_string: &[u8]| {
+         false
+      },
+      normalize: |this: &FixedString| {
+          *this
+      }
+    }
+}
+
+/// Value type used for service attributes.
+pub type AttributeValue = value::FixedString;
+
+type KeyStorage = StaticVec<AttributeKey, MAX_ATTRIBUTES>;
+type AttributeStorage = StaticVec<Attribute, MAX_ATTRIBUTES>;
+
+/// Failures that can occur when the [`AttributeVerifier`] fails the verification.
+#[allow(clippy::large_enum_variant)] // safety context forbids use of Box
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum AttributeVerificationError {
+    /// A key defined via [`AttributeVerifier::require_key()`] is missing.
+    NonExistingKey(AttributeKey),
+    /// A key defined via [`AttributeVerifier::require()`] has the wrong value.
+    IncompatibleAttribute((AttributeKey, AttributeValue)),
+}
+
+impl core::fmt::Display for AttributeVerificationError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            AttributeVerificationError::NonExistingKey(key) => {
+                write!(f, "AttributeVerificationError::NonExistingKey({:?})", key)
+            }
+            AttributeVerificationError::IncompatibleAttribute((key, value)) => {
+                write!(
+                    f,
+                    "AttributeVerificationError::IncompatibleAttribute(({:?}, {:?}))",
+                    key, value
+                )
+            }
+        }
+    }
+}
+
+impl core::error::Error for AttributeVerificationError {}
+
+/// Failures that can occur when defining [`Attribute`]s with [`AttributeSpecifier::define()`].
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum AttributeDefinitionError {
+    /// The new [`Attribute`] would exceed the maximum supported number of [`Attribute`]s
+    ExceedsMaxSupportedAttributes,
+}
+
+impl core::fmt::Display for AttributeDefinitionError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "AttributeDefinitionError::{self:?}")
+    }
+}
+
+impl core::error::Error for AttributeDefinitionError {}
+
+/// Represents a single service attribute (key-value) pair that can be defined when the service
+/// is being created.
+#[derive(Debug, Eq, PartialEq, Clone, PartialOrd, Ord, ZeroCopySend, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Attribute {
+    key: AttributeKey,
+    value: AttributeValue,
+}
+
+impl Attribute {
+    /// Creates an attribute instance
+    pub fn new(key: &AttributeKey, value: &AttributeValue) -> Self {
+        Self {
+            key: *key,
+            value: *value,
+        }
+    }
+
+    /// Acquires the service attribute key
+    pub fn key(&self) -> &AttributeKey {
+        &self.key
+    }
+
+    /// Acquires the service attribute value
+    pub fn value(&self) -> &AttributeValue {
+        &self.value
+    }
+}
+
+/// Represents the set of [`Attribute`]s that are defined when the [`crate::service::Service`]
+/// is created.
+#[derive(Debug, Clone)]
+pub struct AttributeSpecifier(pub(crate) AttributeSet);
+
+impl Default for AttributeSpecifier {
+    fn default() -> Self {
+        Self(AttributeSet::new())
+    }
+}
+
+impl AttributeSpecifier {
+    /// Creates a new empty set of [`Attribute`]s
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Defines a value for a specific key. A key is allowed to have multiple values.
+    pub fn define(
+        mut self,
+        key: &AttributeKey,
+        value: &AttributeValue,
+    ) -> Result<Self, AttributeDefinitionError> {
+        self.0.add(key, value)?;
+        Ok(self)
+    }
+
+    /// Returns the underlying [`AttributeSet`]
+    pub fn attributes(&self) -> &AttributeSet {
+        &self.0
+    }
+}
+
+/// Represents the set of [`Attribute`]s that are required when the [`crate::service::Service`]
+/// is opened.
+#[derive(Debug, Clone)]
+pub struct AttributeVerifier {
+    required_attributes: AttributeSet,
+    required_keys: KeyStorage,
+}
+
+impl Default for AttributeVerifier {
+    fn default() -> Self {
+        Self {
+            required_attributes: AttributeSet::new(),
+            required_keys: KeyStorage::new(),
+        }
+    }
+}
+
+impl AttributeVerifier {
+    /// Creates a new empty set of [`Attribute`]s
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Requires a value for a specific key. A key is allowed to have multiple values.
+    pub fn require(
+        mut self,
+        key: &AttributeKey,
+        value: &AttributeValue,
+    ) -> Result<Self, AttributeDefinitionError> {
+        if AttributeSet::capacity() <= self.required_attributes.len() + self.required_keys.len()
+            || self.required_attributes.add(key, value).is_err()
+        {
+            fail!(from self, with AttributeDefinitionError::ExceedsMaxSupportedAttributes,
+                "Unable to require the attribute {}={} since it would exceed the maximum number of supported attributes of {}.",
+                key, value, MAX_ATTRIBUTES);
+        }
+        Ok(self)
+    }
+
+    /// Requires that a specific key is defined.
+    pub fn require_key(mut self, key: &AttributeKey) -> Result<Self, AttributeDefinitionError> {
+        if AttributeSet::capacity() <= self.required_attributes.len() + self.required_keys.len()
+            || self.required_keys.push(*key).is_err()
+        {
+            fail!(from self, with AttributeDefinitionError::ExceedsMaxSupportedAttributes,
+                "Unable to require the key {} since it would exceed the maximum number of supported attributes of {}.",
+                key, MAX_ATTRIBUTES);
+        }
+
+        Ok(self)
+    }
+
+    /// Returns the underlying required [`AttributeSet`]
+    pub fn required_attributes(&self) -> &AttributeSet {
+        &self.required_attributes
+    }
+
+    /// Returns the underlying required keys
+    pub fn required_keys(&self) -> &[AttributeKey] {
+        self.required_keys.as_slice()
+    }
+
+    /// Verifies if the [`AttributeSet`] contains all required keys and key-value pairs.
+    #[allow(clippy::result_large_err)] // safety context forbids use of Box
+    pub fn verify_requirements(
+        &self,
+        rhs: &AttributeSet,
+    ) -> Result<(), AttributeVerificationError> {
+        let msg = "The verification of attribute requirements failed";
+        // Implementation utilizes nested loops, however since MAX_ATTRIBUTES is small and
+        // the method is not expected to be used in a hot path, performance should be fine.
+
+        // Check if the required key-value pair exists in the target AttributeSet.
+        for attribute in self.required_attributes().iter() {
+            let key = attribute.key();
+            let value = attribute.value();
+
+            let attribute_present = rhs
+                .iter()
+                .any(|attr| attr.key() == key && attr.value() == value);
+
+            if !attribute_present {
+                fail!(from self,
+                    with AttributeVerificationError::IncompatibleAttribute((*key, *value)),
+                    "{msg} due to the incompatible attribute {} = {}.",
+                    key, value);
+            }
+        }
+
+        // Ensure keys without values are also present in the target AttributeSet.
+        for key in self.required_keys() {
+            let key_exists = rhs.iter().any(|attr| attr.key == *key);
+
+            if !key_exists {
+                fail!(from self,
+                    with AttributeVerificationError::NonExistingKey(*key),
+                    "{msg} due to a missing key {}.", key);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents all service attributes. They can be set when the service is created.
+#[derive(Debug, Eq, PartialEq, Clone, ZeroCopySend, Serialize, Deserialize)]
+#[repr(C)]
+pub struct AttributeSet(AttributeStorage);
+
+impl Deref for AttributeSet {
+    type Target = [Attribute];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_slice()
+    }
+}
+
+impl AttributeSet {
+    pub(crate) fn new() -> Self {
+        Self(AttributeStorage::new())
+    }
+
+    pub(crate) fn add(
+        &mut self,
+        key: &AttributeKey,
+        value: &AttributeValue,
+    ) -> Result<(), AttributeDefinitionError> {
+        fail!(from self,
+            when self.0.push(Attribute::new(key, value)),
+            with AttributeDefinitionError::ExceedsMaxSupportedAttributes,
+            "Failed to add attribute {}={} since this would exceed the max number of supported attributes {}.",
+            key, value, self.0.capacity());
+        self.0.sort();
+        Ok(())
+    }
+
+    /// Returns the number of [`Attribute`]s stored inside the [`AttributeSet`].
+    pub fn number_of_attributes(&self) -> usize {
+        self.iter().len()
+    }
+
+    /// Returns the maximum number of [`Attribute`]s the [`AttributeSet`] can hold.
+    pub const fn capacity() -> usize {
+        AttributeStorage::capacity()
+    }
+
+    /// Returns the number of values stored under a specific key. If the key does not exist it
+    /// returns 0.
+    pub fn number_of_key_values(&self, key: &AttributeKey) -> usize {
+        self.iter().filter(|element| element.key() == key).count()
+    }
+
+    /// Returns a value of a key at a specific index. The index enumerates the values of the key
+    /// if the key has multiple values. The values are always stored at the same position during
+    /// the lifetime of the service but they can change when the process is recreated by another
+    /// process when the system restarts.
+    /// If the key does not exist or it does not have a value at the specified index, it returns
+    /// [`None`].
+    pub fn key_value(&self, key: &AttributeKey, idx: usize) -> Option<&AttributeValue> {
+        self.0
+            .iter()
+            .filter(|attr| attr.key() == key)
+            .map(|attr| attr.value())
+            .nth(idx)
+    }
+
+    /// Iterates over all values of a specific key
+    pub fn iter_key_values<F: FnMut(&AttributeValue) -> CallbackProgression>(
+        &self,
+        key: &AttributeKey,
+        mut callback: F,
+    ) {
+        for element in self.iter() {
+            if element.key() != key {
+                continue;
+            }
+
+            if callback(element.value()) == CallbackProgression::Stop {
+                break;
+            }
+        }
+    }
+}

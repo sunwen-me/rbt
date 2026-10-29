@@ -1,0 +1,57 @@
+module_name = "RBT native M3T articulated arm tracking"
+module_version = "0.3.0"
+sdk_version = "0.8.0"
+integration = "optional"
+
+[upstream]
+name = "3DObjectTracking"
+repository = "https://github.com/DLR-RM/3DObjectTracking.git"
+commit = "f02106186a1e756450226b3b793e309506817c58"
+license = "MIT"
+license_file = "licenses/M3T-MIT.txt"
+bootstrap = "scripts/bootstrap_native.sh"
+
+[source_overlay]
+implementation = "cmake/UpstreamM3T.cmake"
+generated_directories = [
+  "${CMAKE_CURRENT_BINARY_DIR}/m3t-upstream-overlay/M3T/src",
+  "${CMAKE_CURRENT_BINARY_DIR}/m3t-upstream-overlay/M3T/include/m3t",
+]
+fingerprint_algorithm = "SHA-256"
+upstream_source_fingerprints = [
+  { path = "M3T/src/optimizer.cpp", sha256 = "354417e737aeb8814bbd8c3c3fbe1c6461c91c6275469a54b805a3807c6e5180" },
+  { path = "M3T/include/m3t/optimizer.h", sha256 = "8278269d15daa1e77543d4097d84f0069413465d75decdd66765f1a6aa82a610" },
+]
+upstream_checkout_modified = false
+fixes = [
+  "Body::get_id throws std::invalid_argument for unknown IDType instead of falling off the function",
+  "Renderer::referenced_body_ptrs returns a static empty vector instead of a reference to a temporary",
+  "RendererGeometry selects X11 on Linux with GLFW platform support for the GLEW GLX path",
+  "TextureModality overlays guard optional xfeatures2d descriptors, select SIFT by OpenCV version, and fail setup for unavailable or invalid descriptors",
+  "The generated TextureModality overlay adds ORB_DSP = 6 while preserving CPU ORB = 4 and CUDA ORB = 5",
+  "The optional Hexagon route runs ORB extraction and 2-neighbor Hamming matching through FastRPC; ROI preparation, Lowe filtering, geometry, and optimization stay on the host",
+  "Optimizer overlay adds validated exact scalar Gaussian joint-angle factors to the normal-equation diagonal and right-hand side, clears stored factors when SetUp redefines the tree, and overlays optimizer.h ahead of pinned headers",
+]
+
+[integration_scope]
+modalities = ["Region", "Depth", "Texture"]
+optional_features = [
+  "DAISY and FREAK descriptors are available when OpenCV xfeatures2d is found",
+  "SIFT uses features2d on OpenCV 4.4+ or xfeatures2d when available on OpenCV 4.3",
+  "CUDA ORB is opt-in with RBT_M3T_ENABLE_CUDA=ON, requires OpenCV cudafeatures2d and an available CUDA device, and is disabled by default",
+  "Hexagon DSP ORB is opt-in with RBT_M3T_ENABLE_HEXAGON_ORB=ON and requires caller-supplied skeleton and FastRPC stub shared libraries",
+]
+excluded = ["ROS camera integration", "vendor camera SDKs"]
+
+[hexagon_orb]
+enabled_by_default = false
+descriptor_type = 6
+cmake_option = "RBT_M3T_ENABLE_HEXAGON_ORB=ON"
+skeleton_cache_variable = "RBT_M3T_DSP_SKEL"
+stub_cache_variable = "RBT_M3T_DSP_STUB"
+runtime_module_environment = "RBT_M3T_DSP_MODULE"
+runtime_stub_environment = "RBT_M3T_DSP_STUB"
+audit_environment = "RBT_M3T_DSP_AUDIT=1"
+acceptance_status = "PASS: ARM64 V73 CDSP device checks and DSP extended software fixture; physical SO-101/camera NOT_RUN"
+upstream_checkout_modified = false
+numeric_compatibility = "Deterministic fixed-point implementation; not bitwise OpenCV ORB compatible"

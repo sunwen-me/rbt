@@ -1,0 +1,38 @@
+{
+  "format": "rbt-time-semantics-v1",
+  "expected": {
+    "arithmetic": {
+      "difference_ns": 3,
+      "duration_ns": 3,
+      "add_result_ns": 2,
+      "add_overflow": "TimestampOverflow",
+      "negative_duration": "NegativeDuration"
+    },
+    "identity": {
+      "source_mismatch": "ClockSourceMismatch",
+      "generation_mismatch": "ClockGenerationMismatch",
+      "domain_mismatch": "ClockDomainMismatch"
+    },
+    "device_reset": {
+      "generation": 1,
+      "old_stamp_rejected": "ClockGenerationMismatch"
+    },
+    "mapping": {
+      "timestamp_ns": 1004,
+      "uncertainty_ns": 9,
+      "expiry": "ClockMappingExpired",
+      "unknown_uncertainty": "UnknownUncertainty",
+      "invalidated": "MappingInvalidated",
+      "uncertainty_overflow": "TimestampOverflow",
+      "uncertainty_u64_max": 18446744073709551615,
+      "self_mapping_offset": "ClockMappingInvalid",
+      "self_mapping_rate": "ClockMappingInvalid",
+      "self_mapping_identity": 103
+    },
+    "capture_separation": {
+      "capture_kind": "device",
+      "received_kind": "host_monotonic",
+      "legacy_state": "unknown"
+    }
+  }
+}

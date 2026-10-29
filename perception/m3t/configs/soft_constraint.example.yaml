@@ -1,0 +1,24 @@
+%YAML:1.2
+# Identity frame transforms are format examples only; calibrate both joint frames.
+# Direction order: rotation x/y/z, then translation x/y/z.
+constraint_directions: [0, 0, 1, 0, 0, 0]
+body12joint1_pose: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1]
+body22joint2_pose: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1]
+max_distance_rotation: 0.05
+max_distance_translation: 0.01
+standard_deviation_rotation: 0.05
+standard_deviation_translation: 0.005

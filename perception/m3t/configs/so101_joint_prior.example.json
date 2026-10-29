@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "robot_model": "../generated/so101/robot.json",
+  "initialization": "../generated/so101/initialization.json",
+  "cache_directory": "../generated/so101/cache",
+  "model_divides": 2,
+  "model_points": 200,
+  "model_image_size": 512,
+  "correspondence_iterations": 3,
+  "update_iterations": 2,
+  "joint_priors": {
+    "service_name": "joint-state",
+    "controller_id": "so101-controller",
+    "required": false,
+    "time_basis": "received",
+    "mappings": [
+      {
+        "arm": "so101_left",
+        "joint": "1",
+        "source_arm": "left",
+        "source_joint": "shoulder_pan",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_left",
+        "joint": "2",
+        "source_arm": "left",
+        "source_joint": "shoulder_lift",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_left",
+        "joint": "3",
+        "source_arm": "left",
+        "source_joint": "elbow_flex",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_left",
+        "joint": "4",
+        "source_arm": "left",
+        "source_joint": "wrist_flex",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_right",
+        "joint": "1",
+        "source_arm": "right",
+        "source_joint": "shoulder_pan",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_right",
+        "joint": "2",
+        "source_arm": "right",
+        "source_joint": "shoulder_lift",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_right",
+        "joint": "3",
+        "source_arm": "right",
+        "source_joint": "elbow_flex",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      },
+      {
+        "arm": "so101_right",
+        "joint": "4",
+        "source_arm": "right",
+        "source_joint": "wrist_flex",
+        "scale_rad_per_unit": 0.017453292519943295,
+        "offset_rad": 0,
+        "standard_deviation_rad": 0.1
+      }
+    ]
+  }
+}

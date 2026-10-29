@@ -1,0 +1,83 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.demo",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.demo",
+      "namespace": "rbt.demo",
+      "name": "Frame",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "Frame",
+      "header_size": 16,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "5d2c102a797d5b0ab64b4db8844297c0",
+      "signature": "sequence:u64@0;value:u64@8;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "value",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.demo",
+      "namespace": "rbt.demo",
+      "name": "Detection",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "Detection",
+      "header_size": 16,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "d8e60d2ca65e6b5b74f0981d34884a4d",
+      "signature": "sequence:u64@0;value:u64@8;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "value",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    }
+  ]
+}

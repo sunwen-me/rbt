@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["."]
+
+[package]
+name = "cross-host-upstream-probe"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+iceoryx2 = "=0.10.0"

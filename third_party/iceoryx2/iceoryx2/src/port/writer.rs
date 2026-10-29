@@ -1,0 +1,849 @@
+// Copyright (c) 2025 Contributors to the Eclipse Foundation
+//
+// See the NOTICE file(s) distributed with this work for additional
+// information regarding copyright ownership.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache Software License 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license
+// which is available at https://opensource.org/licenses/MIT.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! # Examples
+//!
+//! ```
+//! # use iceoryx2::prelude::*;
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//! type KeyType = u64;
+//! let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .blackboard_creator::<KeyType>()
+//!     .add::<i32>(1, -1)
+//!     .add::<u32>(9, 17)
+//!     .create()?;
+//!
+//! let writer = service.writer_builder().create()?;
+//!
+//! // create a handle for direct write access to a value
+//! let mut entry_handle_mut = writer.entry::<i32>(&1)?;
+//!
+//! // update the value with a copy
+//! entry_handle_mut.update_with_copy(8);
+//!
+//! // loan an uninitialized entry value and write to it without copying
+//! let mut entry_value_uninit = entry_handle_mut.loan_uninit();
+//! entry_value_uninit.value_mut().write(-8);
+//! entry_handle_mut = unsafe { entry_value_uninit.assume_init_and_update() };
+//!
+//! # Ok(())
+//! # }
+//! ```
+
+use crate::constants::MAX_BLACKBOARD_KEY_SIZE;
+use crate::identifiers::UniqueWriterId;
+use crate::prelude::EventId;
+use crate::service::builder::CustomKeyMarker;
+use crate::service::builder::blackboard::{BlackboardResources, KeyMemory};
+use crate::service::dynamic_config::blackboard::WriterDetails;
+use crate::service::static_config::message_type_details::{TypeDetail, TypeVariant};
+use crate::service::{self, SharedServiceState};
+use core::alloc::Layout;
+use core::fmt::Debug;
+use core::hash::Hash;
+use core::marker::PhantomData;
+use core::mem::MaybeUninit;
+use core::ptr::NonNull;
+use iceoryx2_bb_concurrency::atomic::Ordering;
+use iceoryx2_bb_concurrency::cell::UnsafeCell;
+use iceoryx2_bb_elementary::math::align;
+use iceoryx2_bb_elementary_traits::non_null::NonNullCompat;
+use iceoryx2_bb_elementary_traits::testing::abandonable::Abandonable;
+use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+use iceoryx2_bb_lock_free::mpmc::container::ContainerHandle;
+use iceoryx2_bb_lock_free::spmc::unrestricted_atomic::{
+    Producer, UnrestrictedAtomic, UnrestrictedAtomicMgmt,
+};
+use iceoryx2_cal::arc_sync_policy::ArcSyncPolicy;
+use iceoryx2_cal::dynamic_storage::DynamicStorage;
+use iceoryx2_cal::shared_memory::SharedMemory;
+use iceoryx2_log::{fail, fatal_panic};
+
+#[derive(Debug)]
+struct WriterSharedState<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+> {
+    service_state: SharedServiceState<Service, BlackboardResources<Service>>,
+    dynamic_writer_handle: UnsafeCell<Option<ContainerHandle>>,
+    _key: PhantomData<KeyType>,
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+> Drop for WriterSharedState<Service, KeyType>
+{
+    fn drop(&mut self) {
+        if let Some(handle) = unsafe { &*self.dynamic_writer_handle.get() } {
+            self.service_state
+                .dynamic_storage()
+                .get()
+                .blackboard()
+                .release_writer_handle(*handle)
+        }
+    }
+}
+
+unsafe impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+> Send for WriterSharedState<Service, KeyType>
+{
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+> Abandonable for WriterSharedState<Service, KeyType>
+{
+    unsafe fn abandon_in_place(mut this: NonNull<Self>) {
+        let this = unsafe { this.as_mut() };
+        unsafe {
+            SharedServiceState::abandon_in_place(NonNull::iox2_from_mut(&mut this.service_state))
+        };
+    }
+}
+
+/// Defines a failure that can occur when a [`Writer`] is created with
+/// [`crate::service::port_factory::writer::PortFactoryWriter`].
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum WriterCreateError {
+    /// The maximum amount of [`Writer`]s that can connect to a
+    /// [`Service`](crate::service::Service) is
+    /// defined in [`crate::config::Config`]. When this is exceeded no more [`Writer`]s
+    /// can be created for a specific [`Service`](crate::service::Service).
+    ExceedsMaxSupportedWriters,
+    /// Errors that indicate either an implementation issue or a wrongly configured system.
+    InternalFailure,
+    /// Caused by a failure when instantiating a [`ArcSyncPolicy`] defined in the
+    /// [`Service`](crate::service::Service) as `ArcThreadSafetyPolicy`.
+    FailedToDeployThreadsafetyPolicy,
+    /// The tracking port tag, required for cleanup, could not be created.
+    UnableToCreatePortTag,
+}
+
+impl core::fmt::Display for WriterCreateError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "WriterCreateError::{self:?}")
+    }
+}
+
+impl core::error::Error for WriterCreateError {}
+
+/// Producing endpoint of a blackboard based communication.
+#[derive(Debug)]
+pub struct Writer<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> {
+    shared_state: Service::ArcThreadSafetyPolicy<WriterSharedState<Service, KeyType>>,
+    writer_id: UniqueWriterId,
+    // IMPORTANT!
+    // Fields of a rust struct are dropped in declaration order. Since this tag is our marker that the
+    // port exists and might require cleanup after a crash, the tag must be defined as last member of
+    // the struct.
+    // Otherwise the process might crash during cleanup, has already removed the tag but other resources
+    // are still existing. This would make a cleanup from another process impossible.
+    port_tag: Service::StaticStorage,
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> Abandonable for Writer<Service, KeyType>
+{
+    unsafe fn abandon_in_place(mut this: NonNull<Self>) {
+        let this = unsafe { this.as_mut() };
+        unsafe {
+            Service::ArcThreadSafetyPolicy::abandon_in_place(NonNull::iox2_from_mut(
+                &mut this.shared_state,
+            ))
+        };
+        unsafe {
+            Service::StaticStorage::abandon_in_place(NonNull::iox2_from_mut(&mut this.port_tag))
+        };
+    }
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> Writer<Service, KeyType>
+{
+    pub(crate) fn new(
+        service: SharedServiceState<Service, BlackboardResources<Service>>,
+    ) -> Result<Self, WriterCreateError> {
+        let origin = "Writer::new()";
+        let msg = "Unable to create Writer port";
+        let writer_id = UniqueWriterId::new();
+        // !MUST! be the first thing that is created when a new port is instantiated otherwise the
+        // port resources might leak if this process is killed in between.
+        let port_tag = match service
+            .shared_node()
+            .create_port_tag(origin, msg, writer_id.0.value())
+        {
+            Ok(port_tag) => port_tag,
+            Err(e) => {
+                fail!(from origin, with WriterCreateError::UnableToCreatePortTag,
+                        "{msg} since the port tag, that is required for cleanup, could not be created. [{e:?}]");
+            }
+        };
+
+        let shared_state = Service::ArcThreadSafetyPolicy::new(WriterSharedState {
+            service_state: service.clone(),
+            dynamic_writer_handle: UnsafeCell::new(None),
+            _key: PhantomData,
+        });
+
+        let shared_state = match shared_state {
+            Ok(v) => v,
+            Err(e) => {
+                fail!(from origin, with WriterCreateError::FailedToDeployThreadsafetyPolicy,
+                      "{msg} since the threadsafety policy could not be instantiated ({e:?}).");
+            }
+        };
+
+        let new_self = Self {
+            shared_state,
+            writer_id,
+            port_tag,
+        };
+
+        core::sync::atomic::compiler_fence(Ordering::SeqCst);
+
+        // !MUST! be the last task otherwise a writer is added to the dynamic config without the
+        // creation of all required resources
+        let dynamic_writer_handle = match service
+            .dynamic_storage()
+            .get()
+            .blackboard()
+            .add_writer_id(WriterDetails {
+                writer_id,
+                node_id: *service.shared_node().id(),
+            }) {
+            Some(unique_index) => unique_index,
+            None => {
+                fail!(from origin, with WriterCreateError::ExceedsMaxSupportedWriters,
+                            "{} since it would exceed the maximum supported amount of writers of {}.",
+                            msg, service.static_config().blackboard().max_writers);
+            }
+        };
+
+        unsafe {
+            *new_self.shared_state.lock().dynamic_writer_handle.get() = Some(dynamic_writer_handle)
+        };
+        Ok(new_self)
+    }
+
+    /// Returns the [`UniqueWriterId`] of the [`Writer`]
+    pub fn id(&self) -> UniqueWriterId {
+        self.writer_id
+    }
+
+    /// Creates a [`EntryHandleMut`] for direct write access to the value. There can be only one
+    /// [`EntryHandleMut`] per value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    /// #
+    /// # let writer = service.writer_builder().create()?;
+    /// let entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn entry<ValueType: Copy + ZeroCopySend>(
+        &self,
+        key: &KeyType,
+    ) -> Result<EntryHandleMut<Service, KeyType, ValueType>, EntryHandleMutError> {
+        let msg = "Unable to create entry handle";
+
+        // create KeyMemory from key
+        let key_mem = match KeyMemory::try_from(key) {
+            Ok(mem) => mem,
+            Err(_) => {
+                fatal_panic!(from self, "This should never happen! Key with invalid layout passed.");
+            }
+        };
+
+        let offset = self.get_entry_offset(
+            &key_mem,
+            &TypeDetail::new::<ValueType>(TypeVariant::FixedSize),
+            msg,
+        )?;
+
+        match EntryHandleMut::new(self.shared_state.clone(), offset) {
+            Ok(handle) => Ok(handle),
+            Err(e) => {
+                fail!(from self, with e,
+                    "{} since a handle for the passed key and value type already exists.", msg);
+            }
+        }
+    }
+
+    fn get_entry_offset(
+        &self,
+        key_mem: &KeyMemory<MAX_BLACKBOARD_KEY_SIZE>,
+        value_type_details: &TypeDetail,
+        msg: &str,
+    ) -> Result<u64, EntryHandleMutError> {
+        // check if key exists
+        let shared_state = self.shared_state.lock();
+        let index = match unsafe {
+            shared_state
+                .service_state
+                .additional_resource()
+                .mgmt
+                .get()
+                .map
+                .__internal_get(
+                    key_mem,
+                    shared_state
+                        .service_state
+                        .additional_resource()
+                        .key_eq_func
+                        .as_ref(),
+                )
+        } {
+            Some(i) => i,
+            None => {
+                fail!(from self, with EntryHandleMutError::EntryDoesNotExist,
+                "{} since no entry with the given key exists.", msg);
+            }
+        };
+
+        let entry = &shared_state
+            .service_state
+            .additional_resource()
+            .mgmt
+            .get()
+            .entries[index];
+
+        // check if ValueType matches
+        if *value_type_details != entry.type_details {
+            fail!(from self, with EntryHandleMutError::EntryDoesNotExist,
+                "{} since no entry with the given key and value type exists.", msg);
+        }
+
+        let offset = entry.offset.load(core::sync::atomic::Ordering::Relaxed);
+
+        Ok(offset)
+    }
+}
+
+/// Defines a failure that can occur when a [`EntryHandleMut`] is created with [`Writer::entry()`].
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum EntryHandleMutError {
+    /// The entry with the given key and value type does not exist.
+    EntryDoesNotExist,
+    /// The [`EntryHandleMut`] already exists.
+    HandleAlreadyExists,
+}
+
+impl core::fmt::Display for EntryHandleMutError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "EntryHandleMutError::{self:?}")
+    }
+}
+
+impl core::error::Error for EntryHandleMutError {}
+
+/// A handle for direct write access to a specific blackboard value.
+pub struct EntryHandleMut<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> {
+    producer: Producer<'static, ValueType>,
+    entry_id: EventId,
+    _shared_state: Service::ArcThreadSafetyPolicy<WriterSharedState<Service, KeyType>>,
+}
+
+// Safe since the producer implements Send + Sync and shared_state ensures the lifetime of the
+// producer (struct fields are dropped in the same order as declared)
+unsafe impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> Send for EntryHandleMut<Service, KeyType, ValueType>
+{
+}
+unsafe impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> Sync for EntryHandleMut<Service, KeyType, ValueType>
+{
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> EntryHandleMut<Service, KeyType, ValueType>
+{
+    fn new(
+        writer_state: Service::ArcThreadSafetyPolicy<WriterSharedState<Service, KeyType>>,
+        offset: u64,
+    ) -> Result<Self, EntryHandleMutError> {
+        let atomic = (writer_state
+            .lock()
+            .service_state
+            .additional_resource()
+            .data
+            .payload_start_address() as u64
+            + offset) as *mut UnrestrictedAtomic<ValueType>;
+        match unsafe { (*atomic).acquire_producer() } {
+            None => Err(EntryHandleMutError::HandleAlreadyExists),
+            Some(producer) => {
+                // change to static lifetime is safe since shared_state owns the service state and
+                // the dynamic writer handle + the struct fields are dropped in the same order as
+                // declared
+                let p: Producer<'static, ValueType> = unsafe { core::mem::transmute(producer) };
+                Ok(Self {
+                    producer: p,
+                    _shared_state: writer_state.clone(),
+                    entry_id: EventId::new(offset as _),
+                })
+            }
+        }
+    }
+
+    /// Updates the value by copying the passed value into it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// entry_handle_mut.update_with_copy(8);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn update_with_copy(&self, value: ValueType) {
+        self.producer.store(value);
+    }
+
+    /// Consumes the [`EntryHandleMut`] and loans an uninitialized entry value that can be used to update without copy.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let mut entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// let entry_value_uninit = entry_handle_mut.loan_uninit();
+    /// entry_handle_mut = entry_value_uninit.update_with_copy(-8); // alternatively `entry_value_uninit.value_mut()` can be used to access the `MaybeUninit<ValueType>`
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn loan_uninit(self) -> EntryValueUninit<Service, KeyType, ValueType> {
+        EntryValueUninit::new(self)
+    }
+
+    /// Returns an ID corresponding to the entry which can be used in an event based communication
+    /// setup.
+    pub fn entry_id(&self) -> EventId {
+        self.entry_id
+    }
+}
+
+/// Wrapper around an uninitiaized entry value that can be used for a zero-copy update.
+pub struct EntryValueUninit<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> {
+    ptr: *mut ValueType,
+    entry_handle_mut: EntryHandleMut<Service, KeyType, ValueType>,
+}
+
+// Safe since the EntryHandleMut implements Send + Sync and the EntryHandleMut's shared_state ensures that
+// the memory address ptr is pointing to remains valid, and all methods of EntryValueUninit are
+// consuming.
+unsafe impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> Send for EntryValueUninit<Service, KeyType, ValueType>
+{
+}
+unsafe impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> Sync for EntryValueUninit<Service, KeyType, ValueType>
+{
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Debug + 'static + Hash + ZeroCopySend,
+    ValueType: Copy + 'static,
+> EntryValueUninit<Service, KeyType, ValueType>
+{
+    fn new(entry_handle_mut: EntryHandleMut<Service, KeyType, ValueType>) -> Self {
+        let ptr = unsafe { entry_handle_mut.producer.__internal_get_ptr_to_write_cell() };
+        Self {
+            ptr,
+            entry_handle_mut,
+        }
+    }
+
+    /// Consumes the [`EntryValueUninit`], writes value to the entry value and returns the
+    /// original [`EntryHandleMut`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let mut entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// let entry_value_uninit = entry_handle_mut.loan_uninit();
+    /// entry_handle_mut = entry_value_uninit.update_with_copy(-8);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn update_with_copy(self, value: ValueType) -> EntryHandleMut<Service, KeyType, ValueType> {
+        unsafe { self.ptr.write(value) };
+        unsafe {
+            self.entry_handle_mut
+                .producer
+                .__internal_update_write_cell()
+        };
+        self.entry_handle_mut
+    }
+
+    /// Discard the [`EntryValueUninit`] and returns the original [`EntryHandleMut`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// let entry_value_uninit = entry_handle_mut.loan_uninit();
+    /// let entry_handle_mut = entry_value_uninit.discard();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn discard(self) -> EntryHandleMut<Service, KeyType, ValueType> {
+        self.entry_handle_mut
+    }
+
+    /// Returns a mutable reference to the value of the blackboard entry as `&mut MaybeUninit<ValueType>`.
+    ///
+    /// # Safety
+    ///
+    /// * after writing, assume_init_and_update() must be called to make the value accessible
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let mut entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// let mut entry_value_uninit = entry_handle_mut.loan_uninit();
+    /// entry_value_uninit.value_mut().write(-8);
+    /// entry_handle_mut = unsafe { entry_value_uninit.assume_init_and_update() };
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn value_mut(&mut self) -> &mut MaybeUninit<ValueType> {
+        unsafe {
+            &mut *core::mem::transmute::<*mut ValueType, *mut MaybeUninit<ValueType>>(self.ptr)
+        }
+    }
+
+    /// Consumes the [`EntryValueUninit`], makes the new value accessible and returns the
+    /// original [`EntryHandleMut`].
+    ///
+    /// # Safety
+    ///
+    /// * the caller must ensure that the value was initialized; calling this method when the
+    ///   value was not fully initialized causes undefined behavior on the reader side
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use iceoryx2::prelude::*;
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// # let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// # let service = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    /// #     .blackboard_creator::<u64>()
+    /// #     .add::<i32>(1, -1)
+    /// #     .create()?;
+    ///
+    /// # let writer = service.writer_builder().create()?;
+    /// # let mut entry_handle_mut = writer.entry::<i32>(&1)?;
+    /// let mut entry_value_uninit = entry_handle_mut.loan_uninit();
+    /// entry_value_uninit.value_mut().write(-8);
+    /// entry_handle_mut = unsafe { entry_value_uninit.assume_init_and_update() };
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub unsafe fn assume_init_and_update(self) -> EntryHandleMut<Service, KeyType, ValueType> {
+        unsafe {
+            self.entry_handle_mut
+                .producer
+                .__internal_update_write_cell();
+        }
+        self.entry_handle_mut
+    }
+}
+
+impl<Service: service::Service> Writer<Service, CustomKeyMarker> {
+    #[doc(hidden)]
+    /// # Safety
+    ///
+    ///   * key must be a valid pointer to a value of the set key type
+    pub unsafe fn __internal_entry(
+        &self,
+        key: *const u8,
+        value_type_details: &TypeDetail,
+    ) -> Result<__InternalEntryHandleMut<Service>, EntryHandleMutError> {
+        let msg = "Unable to create entry handle";
+
+        let shared_state = self.shared_state.lock();
+        let key_type_details = shared_state
+            .service_state
+            .static_config()
+            .blackboard()
+            .type_details();
+        let key_layout = unsafe {
+            Layout::from_size_align_unchecked(key_type_details.size, key_type_details.alignment)
+        };
+
+        // create KeyMemory from key ptr
+        let key_mem = unsafe {
+            match KeyMemory::try_from_ptr(key, key_layout) {
+                Ok(mem) => mem,
+                Err(_) => {
+                    fatal_panic!(from self, "This should never happen! Key with invalid layout set.");
+                }
+            }
+        };
+
+        let offset = self.get_entry_offset(&key_mem, value_type_details, msg)?;
+
+        let atomic_mgmt_ptr = (shared_state
+            .service_state
+            .additional_resource()
+            .data
+            .payload_start_address() as u64
+            + offset) as *const UnrestrictedAtomicMgmt;
+
+        let data_ptr = atomic_mgmt_ptr as usize + core::mem::size_of::<UnrestrictedAtomicMgmt>();
+        let data_ptr = align(data_ptr, value_type_details.alignment);
+
+        match __InternalEntryHandleMut::new(
+            atomic_mgmt_ptr,
+            data_ptr as *mut u8,
+            EventId::new(offset as _),
+            self.shared_state.clone(),
+        ) {
+            Ok(handle) => Ok(handle),
+            Err(e) => {
+                fail!(from self, with e,
+                    "{} since a handle for the passed key and value type already exists.", msg);
+            }
+        }
+    }
+}
+
+/// A handle for direct write access to a specific blackboard value. Used for the language bindings
+/// where key and value type cannot be passed as generic.
+#[doc(hidden)]
+pub struct __InternalEntryHandleMut<Service: service::Service> {
+    atomic_mgmt_ptr: *const UnrestrictedAtomicMgmt,
+    data_ptr: *mut u8,
+    entry_id: EventId,
+    _shared_state: Service::ArcThreadSafetyPolicy<WriterSharedState<Service, CustomKeyMarker>>,
+}
+
+impl<Service: service::Service> Drop for __InternalEntryHandleMut<Service> {
+    fn drop(&mut self) {
+        unsafe { (*self.atomic_mgmt_ptr).__internal_release_producer() };
+    }
+}
+
+// Safe since the pointer to the UnrestrictedAtomicMgmt and the data pointer don't change and the
+// UnrestrictedAtomicMgmt implements Send + Sync, and shared_state ensures the lifetime of the
+// UnrestrictedAtomicMgmt
+unsafe impl<Service: service::Service> Send for __InternalEntryHandleMut<Service> {}
+unsafe impl<Service: service::Service> Sync for __InternalEntryHandleMut<Service> {}
+
+impl<Service: service::Service> __InternalEntryHandleMut<Service> {
+    fn new(
+        atomic_mgmt_ptr: *const UnrestrictedAtomicMgmt,
+        data_ptr: *mut u8,
+        entry_id: EventId,
+        writer_state: Service::ArcThreadSafetyPolicy<WriterSharedState<Service, CustomKeyMarker>>,
+    ) -> Result<Self, EntryHandleMutError> {
+        match unsafe { (*atomic_mgmt_ptr).__internal_acquire_producer() } {
+            Ok(_) => Ok(Self {
+                atomic_mgmt_ptr,
+                data_ptr,
+                entry_id,
+                _shared_state: writer_state.clone(),
+            }),
+            Err(_) => Err(EntryHandleMutError::HandleAlreadyExists),
+        }
+    }
+
+    /// Consumes the [`__InternalEntryHandleMut`] and loans an uninitialized entry value that can be
+    /// used to update without copy.
+    pub fn loan_uninit(
+        self,
+        value_size: usize,
+        value_alignment: usize,
+    ) -> __InternalEntryValueUninit<Service> {
+        __InternalEntryValueUninit::new(self, value_size, value_alignment)
+    }
+
+    /// Returns an ID corresponding to the entry which can be used in an event based communication
+    /// setup.
+    pub fn entry_id(&self) -> EventId {
+        self.entry_id
+    }
+
+    /// Returns a pointer to the current write cell of the underlying UnrestrictedAtomicMgmt.
+    ///
+    /// # Safety
+    ///
+    /// * after writing, __internal_update_write_cell must be called to make the value accessible
+    /// * the memory position must not be modified after __internal_update_write_cell has been
+    ///   called
+    pub unsafe fn __internal_get_ptr_to_write_cell(
+        &self,
+        value_size: usize,
+        value_alignment: usize,
+    ) -> *mut u8 {
+        unsafe {
+            (*self.atomic_mgmt_ptr).__internal_get_ptr_to_write_cell(
+                value_size,
+                value_alignment,
+                self.data_ptr,
+            )
+        }
+    }
+
+    /// Updates the write cell of the underlying UnrestrictedAtomicMgmt.
+    ///
+    /// # Safety
+    ///
+    /// * the method must not be called without first writing to the memory position returned by
+    ///   __internal_get_ptr_to_write_cell
+    pub unsafe fn __internal_update_write_cell(&self) {
+        unsafe { (*self.atomic_mgmt_ptr).__internal_update_write_cell() };
+    }
+}
+
+/// Wrapper around an uninitiaized entry value that can be used for a zero-copy update. Used
+/// for the language bindings where key and value type cannot be passed as generics.
+#[doc(hidden)]
+pub struct __InternalEntryValueUninit<Service: service::Service> {
+    write_cell_ptr: *mut u8,
+    entry_handle_mut: __InternalEntryHandleMut<Service>,
+}
+
+// Safe since the write cell pointer doesn't change until the __InternalEntryValueUninit is
+// consumed, and entry_handle_mut ensures the lifetime of the UnrestrictedAtomicMgmt to which
+// write_cell_ptr points to.
+unsafe impl<Service: service::Service> Send for __InternalEntryValueUninit<Service> {}
+unsafe impl<Service: service::Service> Sync for __InternalEntryValueUninit<Service> {}
+
+impl<Service: service::Service> __InternalEntryValueUninit<Service> {
+    /// Creates a new __InternalEntryValueUninit
+    pub fn new(
+        entry_handle_mut: __InternalEntryHandleMut<Service>,
+        value_size: usize,
+        value_alignment: usize,
+    ) -> Self {
+        let write_cell_ptr = unsafe {
+            (*entry_handle_mut.atomic_mgmt_ptr).__internal_get_ptr_to_write_cell(
+                value_size,
+                value_alignment,
+                entry_handle_mut.data_ptr,
+            )
+        };
+        Self {
+            write_cell_ptr,
+            entry_handle_mut,
+        }
+    }
+
+    /// Acquire pointer to write cell of the underlying UnrestrictedAtomicMgmt.
+    pub fn write_cell(&self) -> *mut u8 {
+        self.write_cell_ptr
+    }
+
+    /// Makes new value accessible, consumes the __InternalEntryValueUninit and returns the original
+    /// __InternalEntryHandleMut.
+    pub fn update(self) -> __InternalEntryHandleMut<Service> {
+        unsafe {
+            (*self.entry_handle_mut.atomic_mgmt_ptr).__internal_update_write_cell();
+        }
+        self.entry_handle_mut
+    }
+
+    /// Discards the __InternalEntryValueUninit and returns the original __InternalEntryHandleMut.
+    pub fn discard(self) -> __InternalEntryHandleMut<Service> {
+        self.entry_handle_mut
+    }
+}

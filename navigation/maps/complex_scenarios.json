@@ -1,0 +1,37 @@
+{
+  "source": "Synthetic fixture maps; neither scene is a SLAM result.",
+  "scenarios": [
+    {
+      "id": "rooms",
+      "name": "多房间门洞转弯",
+      "map": "complex_rooms.yaml",
+      "start": [
+        1.25,
+        1.25,
+        0.0
+      ],
+      "goal": [
+        10.45,
+        6.85,
+        0.0
+      ],
+      "goal_timeout_seconds": 90
+    },
+    {
+      "id": "warehouse",
+      "name": "仓库货架与立柱绕行",
+      "map": "complex_warehouse.yaml",
+      "start": [
+        1.25,
+        1.05,
+        0.0
+      ],
+      "goal": [
+        9.45,
+        6.85,
+        0.0
+      ],
+      "goal_timeout_seconds": 90
+    }
+  ]
+}

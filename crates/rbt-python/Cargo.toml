@@ -1,0 +1,31 @@
+[package]
+name = "rbt-python"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "_rbt"
+crate-type = ["cdylib"]
+
+[dependencies]
+async-trait.workspace = true
+iceoryx2.workspace = true
+pyo3.workspace = true
+rbt-compose = { path = "../rbt-compose" }
+rbt-core = { path = "../rbt-core" }
+rbt-iox2 = { path = "../rbt-iox2" }
+rbt-time = { path = "../rbt-time" }
+rbt-time-stream = { path = "../rbt-time-stream" }
+rbt-tf = { path = "../rbt-tf" }
+rbt-tf-transport = { path = "../rbt-tf-transport" }
+rbt-types = { path = "../rbt-types" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

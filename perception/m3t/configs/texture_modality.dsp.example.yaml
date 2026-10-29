@@ -1,0 +1,16 @@
+%YAML:1.2
+# ORB_DSP=6 selects the Hexagon DSP ORB backend; build with
+# RBT_M3T_ENABLE_HEXAGON_ORB=ON.
+descriptor_type: 6
+focused_image_size: 200
+descriptor_distance_threshold: 0.7
+tukey_norm_constant: 20.0
+standard_deviations: [10.0, 5.0]
+max_keyframe_rotation_difference: 0.34906585039885557
+max_keyframe_age: 1000
+n_keyframes: 1
+orb_n_features: 300
+orb_scale_factor: 1.2
+orb_n_levels: 3
+display_visualization: 0
+save_visualizations: 0

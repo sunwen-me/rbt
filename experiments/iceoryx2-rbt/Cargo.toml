@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = ["."]
+
+[package]
+name = "rbt-iceoryx2-fork-probe"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
+iceoryx2 = { path = "../../third_party/iceoryx2-rbt/source/iceoryx2" }
+cross-host-upstream-probe = { path = "../cross-host-upstream" }
+rbt-core = { path = "../../crates/rbt-core" }
+rbt-types = { path = "../../crates/rbt-types" }
+rbt-compose = { path = "../../crates/rbt-compose" }
+rbt-iox2 = { path = "../../crates/rbt-iox2" }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
+
+[patch.crates-io]
+iceoryx2 = { path = "../../third_party/iceoryx2-rbt/source/iceoryx2" }

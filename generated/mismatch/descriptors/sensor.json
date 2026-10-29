@@ -1,0 +1,86 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.sensor",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.sensor",
+      "namespace": "rbt.sensor",
+      "name": "Image",
+      "abi_major": 1,
+      "shape": "slice",
+      "header_type": "ImageHeader",
+      "header_size": 40,
+      "header_align": 8,
+      "element_type": "u8",
+      "element_size": 1,
+      "element_align": 1,
+      "layout_hash": "f88f32069378e1234107664b4557e99f",
+      "signature": "header(sequence:u64@0,timestamp_ns:u64@8,width:u32@16,height:u32@20,stride:u32@24,encoding:PixelFormat@28,exposure_us:u32@32,padding:4);element:u8@0",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "timestamp_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "width",
+          "ty": "u32",
+          "offset": 16,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "height",
+          "ty": "u32",
+          "offset": 20,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "stride",
+          "ty": "u32",
+          "offset": 24,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "encoding",
+          "ty": "PixelFormat",
+          "offset": 28,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "exposure_us",
+          "ty": "u32",
+          "offset": 32,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    }
+  ]
+}

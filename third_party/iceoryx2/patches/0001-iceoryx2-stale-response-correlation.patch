@@ -1,0 +1,262 @@
+diff --git a/iceoryx2/src/active_request.rs b/iceoryx2/src/active_request.rs
+index 1e6ca43..00aa7f2 100644
+--- a/iceoryx2/src/active_request.rs
++++ b/iceoryx2/src/active_request.rs
+@@ -184,6 +184,8 @@ impl<
+             .lock()
+             .request_receiver
+             .release_offset(&self.details, ChannelId::new(0));
++        // `release_offset` may make the request sample available for reuse, so finish only uses
++        // copied request metadata and never reads the request header after this point.
+         self.finish();
+     }
+ }
+@@ -198,11 +200,18 @@ impl<
+ {
+     fn finish(&self) {
+         if self.connection_id != INVALID_CONNECTION_ID {
+-            self.shared_state.lock().response_sender.close_channel(
+-                self.channel_id,
+-                self.connection_id,
+-                self.request_id,
+-            );
++            let shared_state = self.shared_state.lock();
++            let _ = shared_state.update_connections();
++            if let Some(connection_id) = shared_state
++                .response_sender
++                .get_connection_id_of(self.origin().value())
++            {
++                shared_state.response_sender.close_channel(
++                    self.channel_id,
++                    connection_id,
++                    self.request_id,
++                );
++            }
+         }
+     }
+ 
+@@ -212,10 +221,18 @@ impl<
+     /// [`ResponseMut`] will be sent.
+     pub fn has_disconnect_hint(&self) -> bool {
+         if self.connection_id != INVALID_CONNECTION_ID {
+-            self.shared_state
+-                .lock()
++            let shared_state = self.shared_state.lock();
++            let _ = shared_state.update_connections();
++            shared_state
+                 .response_sender
+-                .has_disconnect_hint(self.channel_id, self.connection_id, self.request_id)
++                .get_connection_id_of(self.origin().value())
++                .is_some_and(|connection_id| {
++                    shared_state.response_sender.has_disconnect_hint(
++                        self.channel_id,
++                        connection_id,
++                        self.request_id,
++                    )
++                })
+         } else {
+             false
+         }
+@@ -226,11 +243,18 @@ impl<
+     /// [`Client`](crate::port::client::Client) no longer receives the [`ResponseMut`].
+     pub fn is_connected(&self) -> bool {
+         if self.connection_id != INVALID_CONNECTION_ID {
+-            self.shared_state.lock().response_sender.has_channel_state(
+-                self.channel_id,
+-                self.connection_id,
+-                self.request_id,
+-            )
++            let shared_state = self.shared_state.lock();
++            let _ = shared_state.update_connections();
++            shared_state
++                .response_sender
++                .get_connection_id_of(self.origin().value())
++                .is_some_and(|connection_id| {
++                    shared_state.response_sender.has_channel_state(
++                        self.channel_id,
++                        connection_id,
++                        self.request_id,
++                    )
++                })
+         } else {
+             false
+         }
+@@ -361,6 +385,8 @@ impl<
+                 offset_to_chunk: chunk.offset,
+                 channel_id: self.channel_id,
+                 connection_id: self.connection_id,
++                client_id: self.origin(),
++                request_id: self.request_id,
+                 sample_size: chunk.size,
+                 _response_payload: PhantomData,
+                 _response_header: PhantomData,
+@@ -615,6 +641,8 @@ impl<
+                 offset_to_chunk: chunk.offset,
+                 channel_id: self.channel_id,
+                 connection_id: self.connection_id,
++                client_id: self.origin(),
++                request_id: self.request_id,
+                 sample_size: chunk.size,
+                 _response_payload: PhantomData,
+                 _response_header: PhantomData,
+diff --git a/iceoryx2/src/port/client.rs b/iceoryx2/src/port/client.rs
+index a89b244..0f267fa 100644
+--- a/iceoryx2/src/port/client.rs
++++ b/iceoryx2/src/port/client.rs
+@@ -163,6 +163,38 @@ impl core::fmt::Display for RequestSendError {
+ 
+ impl core::error::Error for RequestSendError {}
+ 
++fn try_next_request_id(request_id_counter: &AtomicU64) -> Option<RequestId> {
++    let request_id = request_id_counter
++        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
++            if value < RequestId::max_value() {
++                Some(value + 1)
++            } else {
++                None
++            }
++        })
++        .ok()?;
++
++    RequestId::new(request_id).ok()
++}
++
++#[cfg(test)]
++mod request_id_tests {
++    use super::*;
++
++    #[test]
++    fn request_id_counter_stops_at_max_value_without_wrapping() {
++        let max_value = RequestId::max_value();
++        let request_id_counter = AtomicU64::new(max_value - 1);
++
++        assert_eq!(
++            try_next_request_id(&request_id_counter).unwrap().value(),
++            max_value - 1
++        );
++        assert!(try_next_request_id(&request_id_counter).is_none());
++        assert_eq!(request_id_counter.load(Ordering::Relaxed), max_value);
++    }
++}
++
+ #[derive(Debug)]
+ pub(crate) struct ClientSharedState<Service: service::Service> {
+     pub(crate) config: LocalClientConfig,
+@@ -605,15 +637,14 @@ impl<
+         self.client_id
+     }
+ 
+-    fn next_request_id(&self) -> RequestId {
+-        RequestId::new(
+-            self.request_id_counter
+-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
+-                    Some((v + 1) % RequestId::max_value())
+-                })
+-                .expect("We return some, therefore the Result always contains a value."),
+-        )
+-        .expect("With modulo RequestId::max_value() when incrementing the request id we ensure that the value is always in bounds")
++    fn next_request_id(&self) -> Result<RequestId, LoanError> {
++        match try_next_request_id(&self.request_id_counter) {
++            Some(request_id) => Ok(request_id),
++            None => {
++                fail!(from self, with LoanError::InternalFailure,
++                    "Unable to loan request since the request id space is exhausted and cannot wrap without reusing an earlier id.");
++            }
++        }
+     }
+ 
+     /// Returns the strategy the [`Client`] follows when a [`RequestMut`] cannot be delivered
+@@ -721,6 +752,9 @@ impl<
+         >,
+         LoanError,
+     > {
++        // Reserve before allocating a sample or removing a response channel from the free queue.
++        // Failed loans may consume an id, which is safe and avoids leaking native resources on exhaustion.
++        let request_id = self.next_request_id()?;
+         let client_shared_state = self.client_shared_state.lock();
+         let chunk = client_shared_state
+             .request_sender
+@@ -742,7 +776,7 @@ impl<
+                 node_id: *client_shared_state.request_sender.shared_node.id(),
+                 client_id: self.id(),
+                 channel_id,
+-                request_id: self.next_request_id(),
++                request_id,
+                 number_of_elements: 1,
+             })
+         };
+@@ -1000,6 +1034,9 @@ impl<
+                 slice_len, max_slice_len);
+         }
+ 
++        // Reserve before allocating a sample or removing a response channel from the free queue.
++        // Failed loans may consume an id, which is safe and avoids leaking native resources on exhaustion.
++        let request_id = self.next_request_id()?;
+         let request_layout = client_shared_state.request_sender.sample_layout(slice_len);
+         let chunk = client_shared_state
+             .request_sender
+@@ -1021,7 +1058,7 @@ impl<
+                 node_id: *client_shared_state.request_sender.shared_node.id(),
+                 client_id: self.id(),
+                 channel_id,
+-                request_id: self.next_request_id(),
++                request_id,
+                 number_of_elements: slice_len as _,
+             })
+         };
+diff --git a/iceoryx2/src/response_mut.rs b/iceoryx2/src/response_mut.rs
+index f612c1d..bbf2ea6 100644
+--- a/iceoryx2/src/response_mut.rs
++++ b/iceoryx2/src/response_mut.rs
+@@ -55,6 +55,8 @@ use iceoryx2_cal::{
+ use iceoryx2_log::fail;
+ 
+ use crate::{
++    active_request::RequestId,
++    identifiers::UniqueClientId,
+     port::{
+         SendError,
+         server::{INVALID_CONNECTION_ID, SharedServerState},
+@@ -88,6 +90,8 @@ pub struct ResponseMut<
+     pub(crate) sample_size: usize,
+     pub(crate) channel_id: ChannelId,
+     pub(crate) connection_id: usize,
++    pub(crate) client_id: UniqueClientId,
++    pub(crate) request_id: RequestId,
+     pub(crate) _response_payload: PhantomData<ResponsePayload>,
+     pub(crate) _response_header: PhantomData<ResponseHeader>,
+ }
+@@ -338,14 +342,27 @@ impl<
+             "{} since the connections could not be updated.", msg);
+ 
+         if self.connection_id != INVALID_CONNECTION_ID {
+-            shared_state.response_sender.deliver_offset_to_connection(
+-                self.offset_to_chunk,
+-                self.sample_size,
+-                self.channel_id,
+-                self.connection_id,
+-            )?;
++            if let Some(connection_id) = shared_state
++                .response_sender
++                .get_connection_id_of(self.client_id.value())
++            {
++                if shared_state.response_sender.has_channel_state(
++                    self.channel_id,
++                    connection_id,
++                    self.request_id,
++                ) {
++                    shared_state.response_sender.deliver_offset_to_connection(
++                        self.offset_to_chunk,
++                        self.sample_size,
++                        self.channel_id,
++                        connection_id,
++                    )?;
++                }
++            }
+         }
+ 
++        // Preserve fire-and-forget behavior: if the original client is gone, or this channel has
++        // since been reused for another request, consume the response without delivering it.
+         Ok(())
+     }
+ }

@@ -1,0 +1,13 @@
+diff --git a/iceoryx2-ffi/c/src/api/response_mut.rs b/iceoryx2-ffi/c/src/api/response_mut.rs
+index fe1c55f32..b4d0cf46e 100644
+--- a/iceoryx2-ffi/c/src/api/response_mut.rs
++++ b/iceoryx2-ffi/c/src/api/response_mut.rs
+@@ -61,7 +61,7 @@ impl ResponseMutUninitUnion {
+ #[repr(C)]
+ #[repr(align(8))] // alignment of Option<ResponseMutUninitUnion>
+ pub struct iox2_response_mut_storage_t {
+-    internal: [u8; 240], // magic number obtained with size_of::<Option<ResponseMutUninitUnion>>()
++    internal: [u8; 264], // magic number obtained with size_of::<Option<ResponseMutUninitUnion>>()
+ }
+ 
+ #[repr(C)]

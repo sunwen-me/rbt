@@ -1,0 +1,54 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.control",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.control",
+      "namespace": "rbt.control",
+      "name": "ControlCommand",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "ControlCommand",
+      "header_size": 16,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "9381cf15842a48ac0964111f0f45ef72",
+      "signature": "sequence:u64@0;value:f32@8;reserved:u32@12;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "value",
+          "ty": "f32",
+          "offset": 8,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u32",
+          "offset": 12,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    }
+  ]
+}

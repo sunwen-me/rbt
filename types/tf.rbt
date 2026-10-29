@@ -1,0 +1,81 @@
+package rbt.tf;
+abi 1;
+
+struct TfFrameId {
+    bytes: u8[64];
+}
+
+struct TfVec3 {
+    x: f64;
+    y: f64;
+    z: f64;
+}
+
+struct TfQuaternion {
+    x: f64;
+    y: f64;
+    z: f64;
+    w: f64;
+}
+
+struct TfTransform3 {
+    translation: TfVec3;
+    rotation: TfQuaternion;
+}
+
+struct TfTimestamp {
+    kind: u8;
+    flags: u8;
+    reserved: u8[6];
+    source_id: u8[48];
+    generation: u64;
+    nanoseconds: i64;
+    uncertainty_ns: u64;
+}
+
+struct StaticTransform {
+    parent: TfFrameId;
+    child: TfFrameId;
+    transform: TfTransform3;
+}
+
+struct StaticHeader {
+    authority: u8[16];
+    revision: u64;
+    status: u32;
+    count: u32;
+    effective_from: TfTimestamp;
+}
+
+struct StaticUpdateHeader {
+    authority: u8[16];
+    revision: u64;
+    status: u32;
+    count: u32;
+    effective_from: TfTimestamp;
+}
+
+message DynamicTransform {
+    authority: u8[16];
+    parent: TfFrameId;
+    child: TfFrameId;
+    stamp: TfTimestamp;
+    transform: TfTransform3;
+    transform_epoch: u64;
+}
+
+message StaticSnapshotRequest {
+    authority: u8[16];
+    max_transforms: u32;
+    reserved: u8[4];
+}
+
+message StaticSnapshot = slice {
+    header StaticHeader;
+    payload StaticTransform[];
+}
+
+message StaticUpdate = slice {
+    header StaticUpdateHeader;
+    payload StaticTransform[];
+}

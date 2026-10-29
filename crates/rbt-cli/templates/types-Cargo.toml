@@ -1,0 +1,11 @@
+[package]
+name = "{{types_package}}"
+version = "{{sdk_version}}"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+# These are direct dependencies because rbt-idl output refers to both crates.
+rbt-types = { path = "{{sdk_root}}/crates/rbt-types" }
+iceoryx2 = { version = "=0.10.0", path = "{{sdk_root}}/third_party/iceoryx2-rbt/source/iceoryx2" }

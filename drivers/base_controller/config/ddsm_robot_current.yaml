@@ -1,0 +1,49 @@
+# 当前双轮 DDSM115 底盘的 100 Hz 目标配置
+# 软件与协议测试已通过，烧录新固件后仍需实机验证周期抖动
+
+ddsm_driver_node:
+  ros__parameters:
+    serial_port: /dev/ddsm
+    baudrate: 460800
+    # Requires the repository's binary bridge firmware, not Waveshare JSON firmware.
+    protocol: hat_binary
+    motor_type: 115
+    left_motor_id: 1
+    right_motor_id: 2
+    heartbeat_ms: 1000
+
+    wheel_radius: 0.05
+    wheel_separation: 0.395
+
+    control_rate: 100.0
+    # teleop_twist_keyboard only publishes on key events; cover OS key-repeat startup delay.
+    cmd_vel_timeout: 0.6
+    enable_stamped_cmd_vel: true
+    feedback_timeout: 0.05
+    max_consecutive_io_failures: 5
+    io_recovery_cycles: 5
+    left_motor_sign: 1
+    right_motor_sign: -1
+
+    imu_topic: /imu/data
+    imu_timeout: 0.5
+    use_imu_orientation: false
+    pid_kp: 1.0
+    pid_ki: 0.0
+    pid_kd: 0.0
+    pid_output_limit: 0.5
+    auto_tune.test_angular_velocity: 0.35
+    auto_tune.precheck_duration: 1.0
+    auto_tune.pulse_duration: 2.5
+    auto_tune.rest_duration: 1.0
+    auto_tune.validation_duration: 2.0
+    auto_tune.max_duration: 30.0
+    auto_tune.stationary_threshold: 0.08
+    auto_tune.max_normalized_rmse: 0.35
+    auto_tune.max_overshoot_ratio: 1.5
+    max_motor_cmd: 330
+
+    odom_frame: odom
+    base_frame: base_footprint
+
+    debug: false

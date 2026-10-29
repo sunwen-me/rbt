@@ -1,0 +1,33 @@
+[package]
+name = "rbt-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rbt"
+path = "src/main.rs"
+
+[dependencies]
+async-trait.workspace = true
+rbt-compose = { path = "../rbt-compose" }
+rbt-core = { path = "../rbt-core" }
+rbt-iox2 = { path = "../rbt-iox2" }
+rbt-idl = { path = "../rbt-idl" }
+rbt-mcap = { path = "../rbt-mcap" }
+rbt-types = { path = "../rbt-types" }
+rbt-time = { path = "../rbt-time" }
+rbt-tf = { path = "../rbt-tf" }
+blake3.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+iceoryx2.workspace = true

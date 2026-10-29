@@ -1,0 +1,962 @@
+diff --git a/iceoryx2-link/link/src/bridge/event.rs b/iceoryx2-link/link/src/bridge/event.rs
+index ef4c87ad3..2eb40fa45 100644
+--- a/iceoryx2-link/link/src/bridge/event.rs
++++ b/iceoryx2-link/link/src/bridge/event.rs
+@@ -12,6 +12,9 @@
+ 
+ use iceoryx2::identifiers::UniqueNodeId;
+ use iceoryx2::node::Node;
++use iceoryx2::port::event_id::EventId;
++use iceoryx2::port::listener::Listener;
++use iceoryx2::port::notifier::NotifierNotifyError;
+ use iceoryx2::service::Service;
+ use iceoryx2_link_backend::relay::{EventRelay, RelayBuilder, RelayFactory};
+ use iceoryx2_link_backend::service_description::EventDescription;
+@@ -27,6 +30,7 @@ pub(super) struct EventBridge<S: Service, B: Backend<S>> {
+     ports: EventPorts<S>,
+     relay: B::EventRelay,
+     counters: Counters,
++    forward_outbound: bool,
+ }
+ 
+ impl<S: Service, B: Backend<S>> Bridged for EventBridge<S, B> {
+@@ -61,20 +65,32 @@ impl<S: Service, B: Backend<S>> Bridged for EventBridge<S, B> {
+             ports,
+             relay,
+             counters: Counters::default(),
++            forward_outbound: true,
+         })
+     }
+ 
+     /// The link's own notifications never reach its listener, so nothing
+     /// is filtered by node.
+-    fn propagate(&mut self, _: &UniqueNodeId) -> Result<(), BridgeError> {
++    fn propagate(
++        &mut self,
++        _: &UniqueNodeId,
++        _: Option<&mut dyn FnMut()>,
++    ) -> Result<(), BridgeError> {
+         let origin = origin!("EventBridge::propagate");
+ 
+-        let propagated = fail!(
++        let received = fail!(
+             from origin,
+-            when self.ports.receive(|id| self.relay.send(id)),
++            when self.ports.receive(|id| {
++                if self.forward_outbound {
++                    self.relay.send(id)
++                } else {
++                    Ok(())
++                }
++            }),
+             with BridgeError::Propagation,
+             "Failed to propagate notifications"
+         );
++        let propagated = if self.forward_outbound { received } else { 0 };
+         self.counters.outbound += propagated;
+ 
+         let ingested = fail!(
+@@ -92,3 +108,17 @@ impl<S: Service, B: Backend<S>> Bridged for EventBridge<S, B> {
+         &mut self.counters
+     }
+ }
++
++impl<S: Service, B: Backend<S>> EventBridge<S, B> {
++    pub(super) fn set_forward_outbound(&mut self, forward: bool) {
++        self.forward_outbound = forward;
++    }
++
++    pub(super) fn notify_readiness(&self, id: EventId) -> Result<(), NotifierNotifyError> {
++        self.ports.notify_internal(id)
++    }
++
++    pub(super) fn listener(&self) -> &Listener<S> {
++        self.ports.listener()
++    }
++}
+diff --git a/iceoryx2-link/link/src/bridge/mod.rs b/iceoryx2-link/link/src/bridge/mod.rs
+index 3ffc8806d..b56bd8c87 100644
+--- a/iceoryx2-link/link/src/bridge/mod.rs
++++ b/iceoryx2-link/link/src/bridge/mod.rs
+@@ -14,11 +14,15 @@ mod event;
+ mod publish_subscribe;
+ mod table;
+ 
++use alloc::collections::BTreeMap;
+ use core::ops::Deref;
+ use iceoryx2::identifiers::UniqueNodeId;
+ use iceoryx2::node::Node;
++use iceoryx2::port::event_id::EventId;
++use iceoryx2::port::listener::Listener;
+ use iceoryx2::service::Service;
+ use iceoryx2::service::service_hash::ServiceHash;
++use iceoryx2::service::service_name::ServiceName;
+ use iceoryx2_bb_elementary::epoch::Epoch;
+ use iceoryx2_link_backend::service_description::{MessagingPattern, ServiceDescription};
+ use iceoryx2_link_backend::{Backend, RemoteDescription};
+@@ -26,7 +30,7 @@ use iceoryx2_log::{fail, origin};
+ 
+ use crate::bridge::event::EventBridge;
+ use crate::bridge::publish_subscribe::PublishSubscribeBridge;
+-use crate::bridge::table::BridgeTable;
++use crate::bridge::table::{BridgeTable, ReadinessDelivery};
+ use crate::diagnostics::{Diagnostics, OpenFailure};
+ 
+ #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+@@ -48,6 +52,7 @@ impl core::error::Error for OpenError {}
+ pub enum BridgeError {
+     Propagation,
+     Ingestion,
++    Readiness,
+ }
+ 
+ impl core::fmt::Display for BridgeError {
+@@ -104,7 +109,11 @@ trait Bridged: Sized {
+     ) -> Result<Self, OpenError>;
+ 
+     /// Moves what is pending in both directions.
+-    fn propagate(&mut self, own_node: &UniqueNodeId) -> Result<(), BridgeError>;
++    fn propagate(
++        &mut self,
++        own_node: &UniqueNodeId,
++        on_ingested: Option<&mut dyn FnMut()>,
++    ) -> Result<(), BridgeError>;
+ 
+     /// What was moved since last taken.
+     fn counters(&mut self) -> &mut Counters;
+@@ -113,16 +122,39 @@ trait Bridged: Sized {
+ pub struct Bridges<S: Service, B: Backend<S>> {
+     publish_subscribe: BridgeTable<PublishSubscribeBridge<S, B>>,
+     event: BridgeTable<EventBridge<S, B>>,
++    readiness_pairs: ReadinessPairs,
+     diagnostics: Diagnostics,
+     /// Moved by every reconcile to track changes.
+     epoch: Epoch,
+ }
+ 
++#[derive(Default)]
++struct ReadinessPairs(BTreeMap<ServiceName, (ServiceName, EventId)>);
++
++impl ReadinessPairs {
++    fn configure(&mut self, payload: ServiceName, readiness: ServiceName, id: EventId) {
++        self.0.insert(payload, (readiness, id));
++    }
++
++    fn contains_payload(&self, payload: &ServiceName) -> bool {
++        self.0.contains_key(payload)
++    }
++
++    fn contains_readiness(&self, readiness: &ServiceName) -> bool {
++        self.0.values().any(|(name, _)| name == readiness)
++    }
++
++    fn iter(&self) -> impl Iterator<Item = (&ServiceName, &(ServiceName, EventId))> {
++        self.0.iter()
++    }
++}
++
+ impl<S: Service, B: Backend<S>> Default for Bridges<S, B> {
+     fn default() -> Self {
+         Self {
+             publish_subscribe: BridgeTable::default(),
+             event: BridgeTable::default(),
++            readiness_pairs: ReadinessPairs::default(),
+             diagnostics: Diagnostics::default(),
+             epoch: Epoch::default(),
+         }
+@@ -130,6 +162,15 @@ impl<S: Service, B: Backend<S>> Default for Bridges<S, B> {
+ }
+ 
+ impl<S: Service, B: Backend<S>> Bridges<S, B> {
++    pub(crate) fn with_readiness_pair(
++        &mut self,
++        payload: ServiceName,
++        readiness: ServiceName,
++        id: EventId,
++    ) {
++        self.readiness_pairs.configure(payload, readiness, id);
++    }
++
+     /// Opens bridges for bridgeable services that have none or were
+     /// resolved anew, and closes bridges of services no longer
+     /// bridgeable. A bridge that fails to open is tried again on the next
+@@ -174,6 +215,11 @@ impl<S: Service, B: Backend<S>> Bridges<S, B> {
+ 
+         self.publish_subscribe.retain(epoch);
+         self.event.retain(epoch);
++        let readiness_pairs = &self.readiness_pairs;
++        self.event.for_each_mut(|name, bridge| {
++            let is_readiness = readiness_pairs.contains_readiness(name);
++            bridge.set_forward_outbound(!is_readiness);
++        });
+         failed.commit();
+     }
+ 
+@@ -187,6 +233,10 @@ impl<S: Service, B: Backend<S>> Bridges<S, B> {
+         self.publish_subscribe.is_empty() && self.event.is_empty()
+     }
+ 
++    pub(crate) fn event_listeners(&self) -> impl Iterator<Item = &Listener<S>> {
++        self.event.iter().map(EventBridge::listener)
++    }
++
+     /// Moves pending samples and notifications of every bridge in both
+     /// directions, samples first so a notification about one never
+     /// arrives before it. Every bridge is attempted even when one fails,
+@@ -197,8 +247,39 @@ impl<S: Service, B: Backend<S>> Bridges<S, B> {
+         monitoring: bool,
+     ) -> Result<(), PropagateError> {
+         let origin = origin!("Bridges::propagate");
+-        let publish_subscribe = self.publish_subscribe.propagate(own_node);
+-        let event = self.event.propagate(own_node);
++        let readiness_pairs = &self.readiness_pairs;
++        let publish_subscribe = self.publish_subscribe.propagate(own_node, |payload| {
++            readiness_pairs.contains_payload(payload)
++        });
++        let mut event_failures = failed_bridges(self.event.propagate(own_node, |_| false));
++
++        for (payload, (readiness, id)) in readiness_pairs.iter() {
++            if !self.publish_subscribe.has_pending_readiness(payload) {
++                continue;
++            }
++
++            let delivery = match self
++                .event
++                .with_mut_by_name(readiness, |bridge| bridge.notify_readiness(*id))
++            {
++                None => ReadinessDelivery::MissingBridge,
++                Some(Ok(())) => ReadinessDelivery::Notified,
++                Some(Err(_)) => ReadinessDelivery::Failed,
++            };
++            self.publish_subscribe.readiness_delivery(payload, delivery);
++
++            if delivery == ReadinessDelivery::Failed {
++                // The payload may already be visible locally. Keep readiness
++                // pending so only the notification is retried next cycle.
++                let already_failed = self
++                    .event
++                    .record_failure_by_name(readiness, BridgeError::Readiness)
++                    .unwrap_or(true);
++                if !already_failed {
++                    event_failures += 1;
++                }
++            }
++        }
+ 
+         let mut failed = self.diagnostics.failed_propagations();
+         for (hash, failure) in self.publish_subscribe.failed().chain(self.event.failed()) {
+@@ -211,7 +292,7 @@ impl<S: Service, B: Backend<S>> Bridges<S, B> {
+             self.event.report();
+         }
+ 
+-        let failures = failed_bridges(publish_subscribe) + failed_bridges(event);
++        let failures = failed_bridges(publish_subscribe) + event_failures;
+         if failures != 0 {
+             fail!(
+                 from origin,
+@@ -235,3 +316,40 @@ fn failed_bridges(outcome: Result<(), PropagateError>) -> usize {
+         Err(PropagateError::Bridges(failures)) => failures,
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn configuring_two_readiness_pairs_preserves_both_payloads_and_events() {
++        let mut pairs = ReadinessPairs::default();
++        let first_payload = ServiceName::new("readiness/payload/first").unwrap();
++        let first_readiness = ServiceName::new("readiness/event/first").unwrap();
++        let second_payload = ServiceName::new("readiness/payload/second").unwrap();
++        let second_readiness = ServiceName::new("readiness/event/second").unwrap();
++        let first_id = EventId::new(11);
++        let second_id = EventId::new(22);
++
++        pairs.configure(first_payload, first_readiness, first_id);
++        pairs.configure(second_payload, second_readiness, second_id);
++
++        let configured: BTreeMap<_, _> = pairs
++            .iter()
++            .map(|(payload, pair)| (*payload, *pair))
++            .collect();
++        assert_eq!(configured.len(), 2);
++        assert_eq!(
++            configured.get(&first_payload),
++            Some(&(first_readiness, first_id))
++        );
++        assert_eq!(
++            configured.get(&second_payload),
++            Some(&(second_readiness, second_id))
++        );
++        assert!(pairs.contains_payload(&first_payload));
++        assert!(pairs.contains_payload(&second_payload));
++        assert!(pairs.contains_readiness(&first_readiness));
++        assert!(pairs.contains_readiness(&second_readiness));
++    }
++}
+diff --git a/iceoryx2-link/link/src/bridge/publish_subscribe.rs b/iceoryx2-link/link/src/bridge/publish_subscribe.rs
+index 99979f175..afefe7c75 100644
+--- a/iceoryx2-link/link/src/bridge/publish_subscribe.rs
++++ b/iceoryx2-link/link/src/bridge/publish_subscribe.rs
+@@ -64,7 +64,11 @@ impl<S: Service, B: Backend<S>> Bridged for PublishSubscribeBridge<S, B> {
+         })
+     }
+ 
+-    fn propagate(&mut self, own_node: &UniqueNodeId) -> Result<(), BridgeError> {
++    fn propagate(
++        &mut self,
++        own_node: &UniqueNodeId,
++        on_ingested: Option<&mut dyn FnMut()>,
++    ) -> Result<(), BridgeError> {
+         let origin = origin!("PublishSubscribeBridge::propagate");
+ 
+         let propagated = fail!(
+@@ -75,9 +79,15 @@ impl<S: Service, B: Backend<S>> Bridged for PublishSubscribeBridge<S, B> {
+         );
+         self.counters.outbound += propagated;
+ 
++        let ingested = match on_ingested {
++            Some(on_ingested) => self
++                .ports
++                .send_with_callback(|loan| self.relay.receive(loan), on_ingested),
++            None => self.ports.send(|loan| self.relay.receive(loan)),
++        };
+         let ingested = fail!(
+             from origin,
+-            when self.ports.send(|loan| self.relay.receive(loan)),
++            when ingested,
+             with BridgeError::Ingestion,
+             "Failed to ingest samples from the opposing side"
+         );
+diff --git a/iceoryx2-link/link/src/bridge/table.rs b/iceoryx2-link/link/src/bridge/table.rs
+index a27c94cb7..7de1266a3 100644
+--- a/iceoryx2-link/link/src/bridge/table.rs
++++ b/iceoryx2-link/link/src/bridge/table.rs
+@@ -36,6 +36,35 @@ struct Bridge<B> {
+     seen: Epoch,
+     /// How the bridge's last propagation ended.
+     failure: Option<BridgeError>,
++    /// A successfully published inbound sample awaits local readiness.
++    /// Keeping this with the bridge bounds it and drops it on removal.
++    pending_readiness: PendingReadiness,
++}
++
++#[derive(Default)]
++struct PendingReadiness(bool);
++
++#[derive(Clone, Copy, Eq, PartialEq)]
++pub(super) enum ReadinessDelivery {
++    MissingBridge,
++    Failed,
++    Notified,
++}
++
++impl PendingReadiness {
++    fn mark(&mut self) {
++        self.0 = true;
++    }
++
++    fn is_pending(&self) -> bool {
++        self.0
++    }
++
++    fn delivery(&mut self, result: ReadinessDelivery) {
++        if result == ReadinessDelivery::Notified {
++            self.0 = false;
++        }
++    }
+ }
+ 
+ /// The bridges of one pattern, keyed by service.
+@@ -87,6 +116,7 @@ impl<B: Bridged> BridgeTable<B> {
+             resolved,
+             seen: epoch,
+             failure: None,
++            pending_readiness: PendingReadiness::default(),
+         };
+ 
+         trace!(from origin, "Opened {:?} bridge of {}", bridge.pattern, bridge.name);
+@@ -119,11 +149,28 @@ impl<B: Bridged> BridgeTable<B> {
+     /// Moves what is pending on every bridge in both directions, in hash
+     /// order. A failing bridge does not stop the others, the number of
+     /// failures are returned in the error.
+-    pub(super) fn propagate(&mut self, own_node: &UniqueNodeId) -> Result<(), PropagateError> {
++    pub(super) fn propagate(
++        &mut self,
++        own_node: &UniqueNodeId,
++        is_readiness_source: impl Fn(&ServiceName) -> bool,
++    ) -> Result<(), PropagateError> {
+         let mut failures = 0;
+         for bridge in self.bridges.values_mut() {
+-            bridge.failure = bridge.bridged.propagate(own_node).err();
+-            failures += usize::from(bridge.failure.is_some());
++            let mark_readiness = is_readiness_source(&bridge.name);
++            let Bridge {
++                bridged,
++                failure,
++                pending_readiness,
++                ..
++            } = bridge;
++            let mut on_ingested = || {
++                if mark_readiness {
++                    pending_readiness.mark();
++                }
++            };
++            let on_ingested = mark_readiness.then_some(&mut on_ingested as &mut dyn FnMut());
++            *failure = bridged.propagate(own_node, on_ingested).err();
++            failures += usize::from(failure.is_some());
+         }
+         match failures {
+             0 => Ok(()),
+@@ -149,6 +196,60 @@ impl<B: Bridged> BridgeTable<B> {
+         self.bridges.len()
+     }
+ 
++    pub(super) fn iter(&self) -> impl Iterator<Item = &B> {
++        self.bridges.values().map(|bridge| &bridge.bridged)
++    }
++
++    pub(super) fn for_each_mut(&mut self, mut f: impl FnMut(&ServiceName, &mut B)) {
++        for bridge in self.bridges.values_mut() {
++            f(&bridge.name, &mut bridge.bridged);
++        }
++    }
++
++    pub(super) fn with_mut_by_name<R>(
++        &mut self,
++        name: &ServiceName,
++        f: impl FnOnce(&mut B) -> R,
++    ) -> Option<R> {
++        self.bridges
++            .values_mut()
++            .find(|bridge| bridge.name == *name)
++            .map(|bridge| f(&mut bridge.bridged))
++    }
++
++    pub(super) fn has_pending_readiness(&self, name: &ServiceName) -> bool {
++        self.bridges
++            .values()
++            .any(|bridge| bridge.name == *name && bridge.pending_readiness.is_pending())
++    }
++
++    pub(super) fn readiness_delivery(&mut self, name: &ServiceName, result: ReadinessDelivery) {
++        if let Some(bridge) = self
++            .bridges
++            .values_mut()
++            .find(|bridge| bridge.name == *name)
++        {
++            bridge.pending_readiness.delivery(result);
++        }
++    }
++
++    /// Records a readiness propagation failure on the matching event bridge.
++    /// Returns whether the bridge had already failed during this cycle.
++    pub(super) fn record_failure_by_name(
++        &mut self,
++        name: &ServiceName,
++        error: BridgeError,
++    ) -> Option<bool> {
++        self.bridges
++            .values_mut()
++            .find(|bridge| bridge.name == *name)
++            .map(|bridge| {
++                let already_failed = bridge.failure.is_some();
++                bridge.failure = Some(error);
++                already_failed
++            })
++    }
++
+     /// Logs what every bridge moved since the last report.
+     pub(super) fn report(&mut self) {
+         let origin = origin!("BridgeTable::report");
+@@ -165,3 +266,23 @@ impl<B: Bridged> BridgeTable<B> {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn pending_readiness_survives_missing_bridge_and_failure_until_notified() {
++        let mut pending = PendingReadiness::default();
++
++        pending.mark();
++        pending.delivery(ReadinessDelivery::MissingBridge);
++        assert!(pending.is_pending());
++
++        pending.delivery(ReadinessDelivery::Failed);
++        assert!(pending.is_pending());
++
++        pending.delivery(ReadinessDelivery::Notified);
++        assert!(!pending.is_pending());
++    }
++}
+diff --git a/iceoryx2-link/link/src/discovery_state.rs b/iceoryx2-link/link/src/discovery_state.rs
+index 3e79fdc25..b4eb82eb8 100644
+--- a/iceoryx2-link/link/src/discovery_state.rs
++++ b/iceoryx2-link/link/src/discovery_state.rs
+@@ -55,6 +55,10 @@ pub(crate) type Remotes<'a, Id, Description> = core::iter::Map<
+ 
+ pub(crate) struct Entry<Id, Description, Refusal> {
+     local: Option<Local>,
++    /// A local creation known to be an imported mirror. Consumers can keep
++    /// it alive after its remote offer disappears; that must not turn it
++    /// into a new export on recovery.
++    imported_creation: Option<CreationId>,
+     remotes: BTreeMap<Id, Remote<Description>>,
+     resolution: Resolution<Description, Refusal>,
+     /// Whether a side of the entry changed since it was last resolved.
+@@ -67,6 +71,7 @@ impl<Id, Description, Refusal> Entry<Id, Description, Refusal> {
+     fn new() -> Self {
+         Self {
+             local: None,
++            imported_creation: None,
+             remotes: BTreeMap::new(),
+             resolution: Resolution::OutOfScope,
+             changed: true,
+@@ -99,10 +104,13 @@ impl<Id, Description, Refusal> Entry<Id, Description, Refusal> {
+     /// Whether the local service is the mirror the entry imported, listed
+     /// as local since an application opened a port on it.
+     fn local_is_mirror(&self) -> bool {
+-        matches!(
+-            (&self.local, &self.resolution),
+-            (Some(local), Resolution::Imported(mirror, _)) if local.description == *mirror
+-        )
++        self.local
++            .as_ref()
++            .is_some_and(|local| self.imported_creation == Some(local.id))
++            || matches!(
++                (&self.local, &self.resolution),
++                (Some(local), Resolution::Imported(mirror, _)) if local.description == *mirror
++            )
+     }
+ 
+     fn is_empty(&self) -> bool {
+@@ -434,6 +442,9 @@ impl<Id, Description: PartialEq, Refusal: core::fmt::Display + PartialEq>
+     {
+         let origin = origin!("Change::resolve");
+ 
++        if self.entry.local_is_mirror() {
++            self.entry.imported_creation = self.entry.local.as_ref().map(|local| local.id);
++        }
+         let resolution = resolve(self.entry.local(), self.entry.remotes());
+         self.entry.changed = false;
+         if self.entry.resolution == resolution {
+@@ -797,6 +808,56 @@ mod tests {
+         assert_that!(entry.local(), is_none);
+     }
+ 
++    #[test]
++    fn a_consumer_held_mirror_stays_an_import_after_withdrawal_and_recovery() {
++        const SERVICE: &str = "state/mirror/held-after-withdrawal";
++        let mut sut = Sut::default();
++        let service = description(SERVICE);
++        update_from_remotes(
++            &mut sut,
++            FIRST_GENERATION,
++            &[(FIRST_REMOTE, remote(&service))],
++        );
++        resolve_to(
++            &mut sut,
++            Resolution::Imported(service.clone(), remote(&service)),
++        );
++        // An application subscriber now holds the mirror's native service.
++        update_from_locals(&mut sut, FIRST_GENERATION, &[(FIRST_CREATION, &service)]);
++        resolve_to(
++            &mut sut,
++            Resolution::Imported(service.clone(), remote(&service)),
++        );
++        update_from_remotes(&mut sut, SECOND_GENERATION, &[]);
++        resolve_to(&mut sut, Resolution::OutOfScope);
++        assert_that!(
++            sut.entries.get(&service.hash()).expect("held").local(),
++            is_none
++        );
++
++        update_from_remotes(
++            &mut sut,
++            Generation::At(3),
++            &[(FIRST_REMOTE, remote(&service))],
++        );
++        for change in sut.changes() {
++            change.resolve(|local, _| {
++                assert_that!(local, is_none);
++                Resolution::Imported(service.clone(), remote(&service))
++            });
++        }
++        assert_that!(sut.exported().count(), eq 0);
++
++        // A genuinely recreated native service has a new creation id, and
++        // can be offered as a new local provider after the importing bridge
++        // withdraws and the old native handle is no longer held.
++        update_from_remotes(&mut sut, Generation::At(4), &[]);
++        resolve_to(&mut sut, Resolution::OutOfScope);
++        update_from_locals(&mut sut, SECOND_GENERATION, &[(SECOND_CREATION, &service)]);
++        resolve_to(&mut sut, Resolution::OutOfScope);
++        assert_that!(sut.entries.get(&service.hash()).expect("held").local(), eq Some(&service));
++    }
++
+     #[test]
+     fn an_entry_resolved_to_the_same_resolution_keeps_its_decided_epoch() {
+         const SERVICE: &str = "state/resolution/unchanged";
+diff --git a/iceoryx2-link/link/src/lib.rs b/iceoryx2-link/link/src/lib.rs
+index c67f46d2a..85b208712 100644
+--- a/iceoryx2-link/link/src/lib.rs
++++ b/iceoryx2-link/link/src/lib.rs
+@@ -57,8 +57,14 @@
+ //! * [`Link::node`] is the node representing the link in the local system.
+ //! * [`Link::with_filter`] restricts the link to the services a filter
+ //!   admits by name, those it exports and the mirrors it creates alike.
++//! * [`Link::with_readiness_pair`] derives a local notification after an
++//!   inbound payload is published to shared memory. Configure the same pair
++//!   on both links; paired Event notifications are not relayed.
+ //! * [`Link::with_monitoring`] reports at trace level what every bridge
+ //!   moved in each direction, once per propagation.
++//! * [`Link::event_listeners`] exposes references to the currently bridged
++//!   Event listeners for attaching them to a wait set. Propagation drains
++//!   those listeners.
+ //! * A failed cycle reports a [`DiscoveryError`] or a [`PropagateError`]
+ //!   but leaves the link usable for the next cycle.
+ //!
+diff --git a/iceoryx2-link/link/src/link.rs b/iceoryx2-link/link/src/link.rs
+index 37a5eef1b..686b2e879 100644
+--- a/iceoryx2-link/link/src/link.rs
++++ b/iceoryx2-link/link/src/link.rs
+@@ -14,6 +14,7 @@ use alloc::boxed::Box;
+ 
+ use iceoryx2::identifiers::UniqueNodeId;
+ use iceoryx2::node::{Node, NodeState, NodeView};
++use iceoryx2::port::event_id::EventId;
+ use iceoryx2::port::listener::Listener;
+ use iceoryx2::prelude::CallbackProgression;
+ use iceoryx2::service::service_name::ServiceName;
+@@ -84,6 +85,28 @@ impl<S: Service, B: Backend<S>> Link<S, B> {
+         self
+     }
+ 
++    /// Configures a local readiness notification for successfully ingested
++    /// payloads of `payload`.
++    ///
++    /// Configure the same pair on both links. The Event service is still
++    /// opened and advertised through normal discovery, but its local
++    /// notifications are not relayed. The link does not create the Event
++    /// service; it uses the already-discovered Event bridge and retains
++    /// readiness while that bridge is absent. Each link derives `id` after it
++    /// publishes an inbound payload to local shared memory, so callers must
++    /// not depend on remote readiness frames. Call repeatedly to configure
++    /// multiple independent pairs; configuring the same payload again
++    /// replaces its previous pair.
++    pub fn with_readiness_pair(
++        mut self,
++        payload: ServiceName,
++        readiness: ServiceName,
++        id: EventId,
++    ) -> Self {
++        self.bridges.with_readiness_pair(payload, readiness, id);
++        self
++    }
++
+     /// Reports what every bridge moved each propagation at trace log level.
+     pub fn with_monitoring(mut self) -> Self {
+         self.monitoring = true;
+@@ -213,6 +236,15 @@ impl<S: Service, B: Backend<S>> Link<S, B> {
+     pub fn bridges(&self) -> &Bridges<S, B> {
+         &self.bridges
+     }
++
++    /// The listeners on the Event bridges currently held by the link.
++    ///
++    /// These references can be attached to a wait set to wake the caller
++    /// when a local Event arrives. Bridge propagation remains responsible
++    /// for draining them.
++    pub fn event_listeners(&self) -> impl Iterator<Item = &Listener<S>> {
++        self.bridges.event_listeners()
++    }
+ }
+ 
+ impl<S: Service, B: Backend<S> + Reactive> Link<S, B> {
+diff --git a/iceoryx2-link/link/src/ports/event.rs b/iceoryx2-link/link/src/ports/event.rs
+index 9e5030fdb..edbe1c0dd 100644
+--- a/iceoryx2-link/link/src/ports/event.rs
++++ b/iceoryx2-link/link/src/ports/event.rs
+@@ -101,6 +101,16 @@ impl<S: Service> EventPorts<S> {
+         })
+     }
+ 
++    pub(crate) fn listener(&self) -> &Listener<S> {
++        &self.listener
++    }
++
++    /// Locally notifies the event's listeners while excluding this node's
++    /// listeners, so the bridge cannot relay the readiness notification.
++    pub(crate) fn notify_internal(&self, id: EventId) -> Result<(), NotifierNotifyError> {
++        self.notifier.__internal_notify(id, true).map(|_| ())
++    }
++
+     /// Hands every pending notification to `propagate`. The link's own
+     /// notifications never reach its listener, see [`Self::send`].
+     ///
+@@ -316,6 +326,48 @@ mod tests {
+         assert_that!(propagated, eq 0);
+     }
+ 
++    #[test]
++    fn internal_readiness_notification_skips_the_link_listener() {
++        const EVENT_ID: usize = 11;
++
++        let config = generate_isolated_config();
++        let app_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let link_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let service_name = generate_service_name();
++        let app_service = app_node
++            .service_builder(&service_name)
++            .event()
++            .create()
++            .expect("service is created");
++        let app_listener = app_service
++            .listener_builder()
++            .create()
++            .expect("listener is created");
++        let mut ports = EventPorts::open(
++            &link_node,
++            &service_name,
++            &EventSettings::from_config(&config),
++        )
++        .expect("ports open");
++
++        ports
++            .notify_internal(EventId::new(EVENT_ID))
++            .expect("readiness notification succeeds");
++
++        assert_that!(received(&app_listener), eq alloc::vec![EventId::new(EVENT_ID)]);
++        assert_that!(received(ports.listener()), len 0);
++        let propagated = ports
++            .receive(|_| Ok::<(), ()>(()))
++            .expect("receive succeeds");
++        assert_that!(propagated, eq 0);
++    }
++
+     #[test]
+     fn an_id_beyond_the_ceiling_fails_the_send() {
+         const CEILING: usize = 4;
+diff --git a/iceoryx2-link/link/src/ports/publish_subscribe.rs b/iceoryx2-link/link/src/ports/publish_subscribe.rs
+index 02d3583eb..6f95f6047 100644
+--- a/iceoryx2-link/link/src/ports/publish_subscribe.rs
++++ b/iceoryx2-link/link/src/ports/publish_subscribe.rs
+@@ -178,10 +178,20 @@ impl<S: Service> PublishSubscribePorts<S> {
+     ///
+     /// Returns the number of samples published.
+     pub(crate) fn send<E>(
++        &mut self,
++        ingest: impl for<'a> FnMut(&'a mut LoanFn<'a, S, LoanError>) -> Result<Option<SampleMut<S>>, E>,
++    ) -> Result<u64, SendError> {
++        self.send_with_callback(ingest, || {})
++    }
++
++    /// Like [`Self::send`], calling `on_published` immediately after each
++    /// successfully published sample and before requesting the next one.
++    pub(crate) fn send_with_callback<E>(
+         &mut self,
+         mut ingest: impl for<'a> FnMut(
+             &'a mut LoanFn<'a, S, LoanError>,
+         ) -> Result<Option<SampleMut<S>>, E>,
++        mut on_published: impl FnMut(),
+     ) -> Result<u64, SendError> {
+         let origin = origin!("PublishSubscribePorts::send");
+         let mut sent = 0;
+@@ -202,6 +212,7 @@ impl<S: Service> PublishSubscribePorts<S> {
+                 "Failed to send a sample of {}", self.name
+             );
+             sent += 1;
++            on_published();
+         }
+         Ok(sent)
+     }
+@@ -395,4 +406,178 @@ mod tests {
+             .expect("receive succeeds");
+         assert_that!(propagated, eq 0);
+     }
++
++    #[test]
++    fn successful_publication_is_reported_before_later_ingestion_failure() {
++        const PUBLISHED: u64 = 17;
++
++        let config = generate_isolated_config();
++        let app_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let link_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let service_name = generate_service_name();
++        let app_service = app_node
++            .service_builder(&service_name)
++            .publish_subscribe::<u64>()
++            .create()
++            .expect("service is created");
++        let app_subscriber = app_service
++            .subscriber_builder()
++            .create()
++            .expect("subscriber is created");
++
++        let static_config =
++            local::Service::details(&service_name, &config, MessagingPattern::PublishSubscribe)
++                .expect("details are readable")
++                .expect("service exists")
++                .static_details;
++        let description = ServiceDescription::try_from(&static_config).expect("carried pattern");
++        let PatternSettings::PublishSubscribe(settings) = &description.settings().pattern else {
++            panic!("a publish-subscribe service");
++        };
++        let ServiceTypes::PublishSubscribe(types) = &description.types() else {
++            panic!("a publish-subscribe service");
++        };
++        let mut sut = PublishSubscribePorts::open(&link_node, &service_name, settings, types)
++            .expect("ports open on the existing service");
++
++        let mut ingestion_attempts = 0;
++        let mut visible_in_callback = false;
++        let result = sut.send_with_callback(
++            |loan| {
++                ingestion_attempts += 1;
++                if ingestion_attempts > 1 {
++                    return Err(());
++                }
++                let sample = loan(core::mem::size_of::<u64>()).expect("loan succeeds");
++                // SAFETY: the loan holds exactly one u64 and the header is
++                // zero sized.
++                let sample = unsafe {
++                    iceoryx2_link_backend::wire::publish_subscribe::initialize_sample(
++                        sample,
++                        &[],
++                        &PUBLISHED.to_ne_bytes(),
++                    )
++                };
++                Ok(Some(sample))
++            },
++            || {
++                visible_in_callback = app_subscriber
++                    .receive()
++                    .expect("receive succeeds")
++                    .is_some();
++            },
++        );
++
++        assert_that!(result, eq Err(SendError::Ingestion));
++        assert_that!(visible_in_callback, eq true);
++    }
++
++    #[test]
++    fn ingestion_failure_without_publication_does_not_trigger_callback() {
++        let config = generate_isolated_config();
++        let app_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let link_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let service_name = generate_service_name();
++        let app_service = app_node
++            .service_builder(&service_name)
++            .publish_subscribe::<u64>()
++            .create()
++            .expect("service is created");
++        let static_config =
++            local::Service::details(&service_name, &config, MessagingPattern::PublishSubscribe)
++                .expect("details are readable")
++                .expect("service exists")
++                .static_details;
++        let description = ServiceDescription::try_from(&static_config).expect("carried pattern");
++        let PatternSettings::PublishSubscribe(settings) = &description.settings().pattern else {
++            panic!("a publish-subscribe service");
++        };
++        let ServiceTypes::PublishSubscribe(types) = &description.types() else {
++            panic!("a publish-subscribe service");
++        };
++        let mut sut = PublishSubscribePorts::open(&link_node, &service_name, settings, types)
++            .expect("ports open on the existing service");
++
++        let mut callbacks = 0;
++        let result = sut.send_with_callback(
++            |_| Err::<Option<SampleMut<local::Service>>, _>(()),
++            || callbacks += 1,
++        );
++
++        assert_that!(result, eq Err(SendError::Ingestion));
++        assert_that!(callbacks, eq 0);
++        drop(app_service);
++    }
++
++    #[test]
++    fn send_failure_does_not_trigger_callback() {
++        const PUBLISHED: u64 = 23;
++
++        let config = generate_isolated_config();
++        let app_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let link_node = NodeBuilder::new()
++            .config(&config)
++            .create::<local::Service>()
++            .expect("node is created");
++        let service_name = generate_service_name();
++        let app_service = app_node
++            .service_builder(&service_name)
++            .publish_subscribe::<u64>()
++            .create()
++            .expect("service is created");
++        let static_config =
++            local::Service::details(&service_name, &config, MessagingPattern::PublishSubscribe)
++                .expect("details are readable")
++                .expect("service exists")
++                .static_details;
++        let description = ServiceDescription::try_from(&static_config).expect("carried pattern");
++        let PatternSettings::PublishSubscribe(settings) = &description.settings().pattern else {
++            panic!("a publish-subscribe service");
++        };
++        let ServiceTypes::PublishSubscribe(types) = &description.types() else {
++            panic!("a publish-subscribe service");
++        };
++        let mut sut = PublishSubscribePorts::open(&link_node, &service_name, settings, types)
++            .expect("ports open on the existing service");
++        let loaner = PublishSubscribePorts::open(&link_node, &service_name, settings, types)
++            .expect("second publisher opens");
++
++        // SAFETY: the service has a fixed-size u64 payload and a zero-sized
++        // header, matching the initialized sample.
++        let sample = unsafe {
++            iceoryx2_link_backend::wire::publish_subscribe::initialize_sample(
++                loaner
++                    .publisher
++                    .loan_custom_payload(1)
++                    .expect("loan succeeds"),
++                &[],
++                &PUBLISHED.to_ne_bytes(),
++            )
++        };
++        // Dropping this publisher makes its outstanding sample fail to send.
++        drop(loaner.publisher);
++        let mut pending = Some(sample);
++        let mut callbacks = 0;
++
++        let result = sut.send_with_callback(|_| Ok::<_, ()>(pending.take()), || callbacks += 1);
++
++        assert_that!(result, eq Err(SendError::Delivery));
++        assert_that!(callbacks, eq 0);
++        drop(app_service);
++    }
+ }

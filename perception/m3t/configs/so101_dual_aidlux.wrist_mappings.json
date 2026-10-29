@@ -1,0 +1,20 @@
+[
+  {
+    "arm": "so101_left",
+    "joint": "5",
+    "source_arm": "left",
+    "source_joint": "wrist_roll",
+    "scale_rad_per_unit": 0.017453292519943295,
+    "offset_rad": 1.5707963267948966,
+    "standard_deviation_rad": 0.1
+  },
+  {
+    "arm": "so101_right",
+    "joint": "5",
+    "source_arm": "right",
+    "source_joint": "wrist_roll",
+    "scale_rad_per_unit": 0.017453292519943295,
+    "offset_rad": 1.780235837034216,
+    "standard_deviation_rad": 0.1
+  }
+]

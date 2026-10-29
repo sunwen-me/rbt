@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: MIT
+#include "remote.idl"
+
+interface rbt_m3t_orb : remote_handle64 {
+    long execute(in sequence<octet> request, rout sequence<octet> response);
+};

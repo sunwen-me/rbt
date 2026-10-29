@@ -1,0 +1,44 @@
+// Sensor messages shared by the Rust and C++ data planes.
+package rbt.sensor;
+abi 1;
+
+newtype PixelFormat: u32 {
+    RGB8 = 1;
+    BGR8 = 2;
+    GRAY8 = 3;
+}
+
+struct ImageHeader {
+    sequence: u64;
+    timestamp_ns: u64;
+    width: u32;
+    height: u32;
+    stride: u32;
+    encoding: PixelFormat;
+}
+
+message Image = slice {
+    header ImageHeader;
+    payload u8[];
+}
+
+struct PointCloudHeader {
+    sequence: u64;
+    timestamp_ns: u64;
+    width: u32;
+    height: u32;
+    dense: u8;
+    reserved: u8[7];
+}
+
+struct PointXYZI {
+    x: f32;
+    y: f32;
+    z: f32;
+    intensity: f32;
+}
+
+message PointCloud = slice {
+    header PointCloudHeader;
+    payload PointXYZI[];
+}

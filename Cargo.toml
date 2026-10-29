@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+
+# Libraries and independently runnable examples share one lockfile.
+members = [
+    "crates/*",
+    "examples/08-rpc",
+    "examples/rust/*",
+    "examples/advanced/*",
+    "examples/interop/phase4-runtime",
+]
+# Reconstructed maintained native workspace; consumed through the direct path below.
+exclude = ["third_party"]
+
+[workspace.package]
+version = "0.8.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+async-trait = "0.1"
+blake3 = "1"
+libc = "0.2"
+pyo3 = { version = "0.29", features = ["extension-module"] }
+futures-util = "0.3"
+iceoryx2 = { version = "=0.10.0", path = "third_party/iceoryx2-rbt/source/iceoryx2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+thiserror = "2"
+tokio = { version = "1", features = [
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+    "signal",
+    "sync",
+    "time",
+] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+rustix = { version = "=1.1.4", features = ["time"] }
+
+# Unified production source: RPC correlation/FFI and network fixes together.
+# Reconstruct with scripts/bootstrap_iceoryx2_rbt.sh --source-only.
+[patch.crates-io]
+iceoryx2 = { path = "third_party/iceoryx2-rbt/source/iceoryx2" }

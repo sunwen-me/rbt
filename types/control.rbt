@@ -1,0 +1,10 @@
+// Control messages shared by the Rust and C++ control planes.
+package rbt.control;
+abi 1;
+
+message ControlCommand {
+    sequence: u64;
+    value: f32;
+    reserved: u32;
+}
+

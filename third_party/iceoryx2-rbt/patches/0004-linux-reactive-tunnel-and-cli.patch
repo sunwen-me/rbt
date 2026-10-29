@@ -1,0 +1,1354 @@
+diff --git a/integrations/zenoh/Cargo.lock b/integrations/zenoh/Cargo.lock
+index 185a29dd7..2d7536f2d 100644
+--- a/integrations/zenoh/Cargo.lock
++++ b/integrations/zenoh/Cargo.lock
+@@ -1552,12 +1552,14 @@ dependencies = [
+  "clap",
+  "human-panic",
+  "iceoryx2",
++ "iceoryx2-bb-posix",
+  "iceoryx2-cli",
+  "iceoryx2-integrations-zenoh-link-carrier",
+  "iceoryx2-link",
+  "iceoryx2-link-backend",
+  "iceoryx2-link-tunnel",
+  "iceoryx2-log",
++ "libc",
+  "zenoh",
+ ]
+ 
+diff --git a/integrations/zenoh/Cargo.toml b/integrations/zenoh/Cargo.toml
+index 5a26395da..8f913eebb 100644
+--- a/integrations/zenoh/Cargo.toml
++++ b/integrations/zenoh/Cargo.toml
+@@ -42,6 +42,7 @@ iceoryx2-link-tunnel = { version = "0.10.0", path = "../../iceoryx2-link/tunnel"
+ iceoryx2-link-conformance-tests = { version = "0.10.0", path = "../../iceoryx2-link/conformance-tests" }
+ 
+ anyhow = { version = "1.0.86" }
++libc = { version = "0.2.189", default-features = false }
+ better-panic = { version = "0.3.0" }
+ clap = { version = "4.5.4", features = ["derive"] }
+ flume = { version = "0.12.0" }
+diff --git a/integrations/zenoh/link-tunnel-cli/Cargo.toml b/integrations/zenoh/link-tunnel-cli/Cargo.toml
+index eb3c64b75..b16eebf65 100644
+--- a/integrations/zenoh/link-tunnel-cli/Cargo.toml
++++ b/integrations/zenoh/link-tunnel-cli/Cargo.toml
+@@ -18,6 +18,7 @@ path = "src/main.rs"
+ iceoryx2-integrations-zenoh-link-carrier = { workspace = true }
+ 
+ iceoryx2 = { workspace = true, features = ["std"] }
++iceoryx2-bb-posix = { workspace = true, features = ["std"] }
+ iceoryx2-cli = { workspace = true }
+ iceoryx2-link = { workspace = true, features = ["std"] }
+ iceoryx2-link-backend = { workspace = true, features = ["std"] }
+@@ -25,6 +26,7 @@ iceoryx2-link-tunnel = { workspace = true, features = ["std"] }
+ iceoryx2-log = { workspace = true, features = ["std"] }
+ 
+ anyhow = { workspace = true }
++libc = { workspace = true }
+ better-panic = { workspace = true }
+ clap = { workspace = true }
+ human-panic = { workspace = true }
+diff --git a/integrations/zenoh/link-tunnel-cli/src/cli.rs b/integrations/zenoh/link-tunnel-cli/src/cli.rs
+index 2a2cfb992..ac97088f6 100644
+--- a/integrations/zenoh/link-tunnel-cli/src/cli.rs
++++ b/integrations/zenoh/link-tunnel-cli/src/cli.rs
+@@ -9,8 +9,17 @@
+ // which is available at https://opensource.org/licenses/MIT.
+ //
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+-use clap::Parser;
++use clap::{Parser, ValueEnum};
+ use iceoryx2_cli::help_template;
++use iceoryx2_integrations_zenoh_link_carrier::QueueConfig;
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
++pub enum QueueOverflow {
++    #[value(name = "drop-newest")]
++    DropNewest,
++    #[value(name = "drop-oldest")]
++    DropOldest,
++}
+ 
+ #[derive(Parser)]
+ #[command(
+@@ -18,7 +27,7 @@ use iceoryx2_cli::help_template;
+     bin_name = "iox2 link tunnel zenoh",
+     about = "Launch an iceoryx2 tunnel to other iceoryx2 systems over zenoh.",
+     long_about = None,
+-    version = env!("CARGO_PKG_VERSION"),
++    version = crate::FORK_VERSION,
+     help_template = help_template().build(),
+ )]
+ pub struct Cli {
+@@ -37,10 +46,36 @@ pub struct Cli {
+         action = clap::ArgAction::Append,
+         help = "Bridge iceoryx2 services whose names match this wildcard pattern, where '*' \
+                 matches zero or more characters and '?' matches one. Repeatable. When omitted, \
+-                all services are bridged."
++                all services are bridged unless --rbt-stream is used."
+     )]
+     pub allow: Vec<String>,
+ 
++    #[clap(
++        long = "rbt-stream",
++        value_name = "SERVICE",
++        action = clap::ArgAction::Append,
++        help = "Select this payload service and its SERVICE/ready event service for local readiness notifications (repeatable)"
++    )]
++    pub rbt_stream: Vec<String>,
++
++    #[clap(
++        long,
++        value_name = "FRAMES",
++        default_value_t = QueueConfig::DEFAULT_CAPACITY,
++        value_parser = parse_positive_usize,
++        help = "Maximum queued frames per Zenoh channel (default: 64)"
++    )]
++    pub queue_capacity: usize,
++
++    #[clap(
++        long,
++        value_name = "POLICY",
++        value_enum,
++        default_value = "drop-newest",
++        help = "Queue overflow policy: drop-newest or drop-oldest"
++    )]
++    pub queue_overflow: QueueOverflow,
++
+     #[clap(
+         long,
+         value_name = "RATE",
+@@ -66,3 +101,55 @@ pub struct Cli {
+     )]
+     pub monitor: bool,
+ }
++
++fn parse_positive_usize(value: &str) -> Result<usize, String> {
++    let capacity = value
++        .parse::<usize>()
++        .map_err(|error| format!("invalid queue capacity: {error}"))?;
++    if capacity == 0 {
++        return Err("queue capacity must be greater than zero".to_string());
++    }
++    Ok(capacity)
++}
++
++#[cfg(test)]
++mod tests {
++    use clap::{CommandFactory, Parser};
++
++    use super::{Cli, QueueOverflow};
++    use iceoryx2_integrations_zenoh_link_carrier::QueueConfig;
++
++    #[test]
++    fn queue_defaults_match_the_carrier_defaults() {
++        let cli = Cli::try_parse_from(["iox2-link-tunnel-zenoh"]).unwrap();
++        assert_eq!(cli.queue_capacity, QueueConfig::DEFAULT_CAPACITY);
++        assert_eq!(cli.queue_overflow, QueueOverflow::DropNewest);
++    }
++
++    #[test]
++    fn queue_capacity_must_be_positive() {
++        assert!(Cli::try_parse_from(["iox2-link-tunnel-zenoh", "--queue-capacity", "0"]).is_err());
++    }
++
++    #[test]
++    fn queue_overflow_accepts_the_two_supported_policies() {
++        let drop_oldest =
++            Cli::try_parse_from(["iox2-link-tunnel-zenoh", "--queue-overflow", "drop-oldest"])
++                .unwrap();
++        assert_eq!(drop_oldest.queue_overflow, QueueOverflow::DropOldest);
++
++        let drop_newest =
++            Cli::try_parse_from(["iox2-link-tunnel-zenoh", "--queue-overflow", "drop-newest"])
++                .unwrap();
++        assert_eq!(drop_newest.queue_overflow, QueueOverflow::DropNewest);
++    }
++
++    #[test]
++    fn cli_version_identifies_the_maintained_fork() {
++        assert_eq!(Cli::command().get_version(), Some(crate::FORK_VERSION));
++        assert_eq!(
++            crate::FORK_VERSION,
++            concat!(env!("CARGO_PKG_VERSION"), "-rbt.2")
++        );
++    }
++}
+diff --git a/integrations/zenoh/link-tunnel-cli/src/main.rs b/integrations/zenoh/link-tunnel-cli/src/main.rs
+index 191b89181..0c47ba281 100644
+--- a/integrations/zenoh/link-tunnel-cli/src/main.rs
++++ b/integrations/zenoh/link-tunnel-cli/src/main.rs
+@@ -16,6 +16,7 @@ mod wake;
+ 
+ use clap::Parser;
+ use iceoryx2::prelude::*;
++use iceoryx2::waitset::WaitSetRunResult;
+ use iceoryx2_cli::install_panic_handlers;
+ use iceoryx2_log::{LogLevel, fail, info, set_log_level_from_env_or};
+ 
+@@ -24,13 +25,14 @@ use tunnel::{ZenohTunnel, create_tunnel, spin};
+ use wake::WakeSources;
+ 
+ const ORIGIN: &str = "iox2-link-tunnel-zenoh";
++pub(crate) const FORK_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "-rbt.2");
+ 
+ fn main() -> anyhow::Result<()> {
+     install_panic_handlers!();
+     set_log_level_from_env_or(LogLevel::Info);
+     let cli = Cli::parse();
+ 
+-    info!(from ORIGIN, "Starting iox2-link-tunnel-zenoh v{}", env!("CARGO_PKG_VERSION"));
++    info!(from ORIGIN, "Starting iox2-link-tunnel-zenoh v{}", FORK_VERSION);
+ 
+     let iceoryx_config = iceoryx2::config::Config::global_config();
+     let mut tunnel = fail!(
+@@ -38,7 +40,7 @@ fn main() -> anyhow::Result<()> {
+         when create_tunnel(&cli, iceoryx_config),
+         "Failed to create the tunnel"
+     );
+-    let wake_sources = fail!(
++    let mut wake_sources = fail!(
+         from ORIGIN,
+         when WakeSources::new(&cli, &mut tunnel),
+         "Failed to set up the wake sources"
+@@ -47,32 +49,101 @@ fn main() -> anyhow::Result<()> {
+     info!(from ORIGIN, "Tunnel started, Ctrl-C to stop");
+     fail!(
+         from ORIGIN,
+-        when run(&mut tunnel, &wake_sources),
++        when run(&mut tunnel, &mut wake_sources),
+         "The tunnel stopped on an error"
+     );
+     info!(from ORIGIN, "Tunnel stopped");
+     Ok(())
+ }
+ 
+-fn run(tunnel: &mut ZenohTunnel, wake_sources: &WakeSources) -> anyhow::Result<()> {
++fn run(tunnel: &mut ZenohTunnel, wake_sources: &mut WakeSources) -> anyhow::Result<()> {
+     let waitset = fail!(
+         from ORIGIN,
+         when WaitSetBuilder::new().create::<ipc::Service>(),
+         "Failed to create the wait set"
+     );
+-    let _attached = fail!(
+-        from ORIGIN,
+-        when wake_sources.attach(&waitset),
+-        "Failed to attach the wake sources"
+-    );
+-    fail!(
+-        from ORIGIN,
+-        when waitset.wait_and_process(|_| {
+-            wake_sources.drain();
++    if wake_sources.is_reactive() {
++        // The initial discovery must run after local watches are installed, so
++        // services that predate this process are offered before the first wait.
++        spin(tunnel);
++    }
++
++    loop {
++        let mut should_spin = false;
++        let mut exited_nodes = Vec::new();
++        let wait_result = {
++            let _sources = fail!(
++                from ORIGIN,
++                when wake_sources.attach(&waitset),
++                "Failed to attach the CLI wake sources"
++            );
++
++            #[cfg(target_os = "linux")]
++            let local = match wake_sources.local() {
++                Some(local) => Some(fail!(
++                    from ORIGIN,
++                    when local.attach(&waitset),
++                    "Failed to attach local discovery wake sources"
++                )),
++                None => None,
++            };
++
++            let mut event_listeners = Vec::new();
++            for listener in tunnel.event_listeners() {
++                event_listeners.push(fail!(
++                    from ORIGIN,
++                    when waitset.attach_notification(listener),
++                    "Failed to attach a bridge event listener"
++                ));
++            }
++
++            fail!(
++                from ORIGIN,
++                when waitset.wait_and_process_once(|attachment_id| {
++                    #[cfg(target_os = "linux")]
++                    if let Some(local) = &local {
++                        if attachment_id.has_event_from(&local.inotify) {
++                            return CallbackProgression::Continue;
++                        }
++                        for (node_id, guard) in &local.pidfds {
++                            if attachment_id.has_event_from(guard) {
++                                exited_nodes.push(*node_id);
++                                should_spin = true;
++                                return CallbackProgression::Continue;
++                            }
++                        }
++                    }
++
++                    should_spin = true;
++                    CallbackProgression::Continue
++                }),
++                "The wait set failed"
++            )
++        };
++
++        match wait_result {
++            WaitSetRunResult::Interrupt | WaitSetRunResult::TerminationRequest => return Ok(()),
++            WaitSetRunResult::StopRequest => return Ok(()),
++            WaitSetRunResult::AllEventsHandled => (),
++        }
++
++        fail!(
++            from ORIGIN,
++            when wake_sources.drain(),
++            "Failed to drain the CLI wake sources"
++        );
++
++        #[cfg(target_os = "linux")]
++        if let Some(local) = wake_sources.local_mut() {
++            should_spin |= fail!(
++                from ORIGIN,
++                when local.refresh(&exited_nodes),
++                "Failed to refresh local discovery wake sources"
++            );
++        }
++
++        if should_spin {
+             spin(tunnel);
+-            CallbackProgression::Continue
+-        }),
+-        "The waitset failed"
+-    );
+-    Ok(())
++        }
++    }
+ }
+diff --git a/integrations/zenoh/link-tunnel-cli/src/tunnel.rs b/integrations/zenoh/link-tunnel-cli/src/tunnel.rs
+index 1f738c05c..43a438510 100644
+--- a/integrations/zenoh/link-tunnel-cli/src/tunnel.rs
++++ b/integrations/zenoh/link-tunnel-cli/src/tunnel.rs
+@@ -11,14 +11,15 @@
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+ use iceoryx2::prelude::*;
+-use iceoryx2_integrations_zenoh_link_carrier::ZenohCarrier;
++use iceoryx2_integrations_zenoh_link_carrier::{OverflowPolicy, QueueConfig, ZenohCarrier};
+ use iceoryx2_link::Link;
+ use iceoryx2_link_backend::AllowList;
+ use iceoryx2_link_tunnel::Tunnel;
+ use iceoryx2_log::{fail, info, warn};
++use std::collections::BTreeSet;
+ 
+ use crate::ORIGIN;
+-use crate::cli::Cli;
++use crate::cli::{Cli, QueueOverflow};
+ 
+ pub type ZenohTunnel = Link<ipc::Service, Tunnel<ZenohCarrier>>;
+ 
+@@ -37,26 +38,66 @@ pub fn create_tunnel(
+         when NodeBuilder::new().config(iceoryx_config).create::<ipc::Service>(),
+         "Failed to create the tunnel's node"
+     );
++    let overflow = match cli.queue_overflow {
++        QueueOverflow::DropNewest => OverflowPolicy::DropNewest,
++        QueueOverflow::DropOldest => OverflowPolicy::DropOldest,
++    };
++    let queue_config = fail!(
++        from ORIGIN,
++        when QueueConfig::new(cli.queue_capacity, overflow),
++        "Invalid queue configuration"
++    );
+     let carrier = fail!(
+         from ORIGIN,
+-        when ZenohCarrier::create(zenoh_config),
++        when ZenohCarrier::create_with_queue_config(zenoh_config, queue_config),
+         "Failed to create the zenoh carrier"
+     );
+     let tunnel = Link::new(node, Tunnel::new(carrier, iceoryx_config));
+-    let tunnel = if cli.monitor {
++    let mut tunnel = if cli.monitor {
+         info!(from ORIGIN, "Monitoring what the bridges move");
+         tunnel.with_monitoring()
+     } else {
+         tunnel
+     };
+ 
+-    // Bridge only the services the allow list admits, every one when none is given.
+-    if cli.allow.is_empty() {
++    let mut selected = BTreeSet::new();
++    let mut readiness_pairs = BTreeSet::new();
++    for name in &cli.rbt_stream {
++        let payload = fail!(
++            from ORIGIN,
++            when ServiceName::new(name),
++            "Invalid --rbt-stream service name {:?}", name
++        );
++        let readiness_name = format!("{}/ready", payload.as_str());
++        let readiness = fail!(
++            from ORIGIN,
++            when ServiceName::new(&readiness_name),
++            "Invalid readiness service name derived from --rbt-stream {:?}", name
++        );
++        selected.insert(payload);
++        selected.insert(readiness);
++        readiness_pairs.insert((payload, readiness));
++    }
++
++    for (payload, readiness) in readiness_pairs {
++        info!(
++            from ORIGIN,
++            "Enabling local readiness for {:?} via {:?}",
++            payload,
++            readiness
++        );
++        tunnel = tunnel.with_readiness_pair(payload, readiness, EventId::new(0));
++    }
++
++    // A stream selection is explicit, so it must not fall through to mirror-all.
++    if cli.allow.is_empty() && selected.is_empty() {
+         return Ok(tunnel);
+     }
+-    info!(from ORIGIN, "Allowing {:?}", cli.allow);
++    info!(from ORIGIN, "Allowing {:?} and selected services {:?}", cli.allow, selected);
+     let allow_list = AllowList::new(&cli.allow);
+-    Ok(tunnel.with_filter(move |name: &ServiceName| allow_list.admits(name.as_str())))
++    Ok(tunnel.with_filter(move |name: &ServiceName| {
++        selected.contains(name) || allow_list.admits(name.as_str())
++    }))
+ }
+ 
+ /// One round of discovery and propagation.
+diff --git a/integrations/zenoh/link-tunnel-cli/src/wake.rs b/integrations/zenoh/link-tunnel-cli/src/wake.rs
+index bdd6ba41f..4c2f9772b 100644
+--- a/integrations/zenoh/link-tunnel-cli/src/wake.rs
++++ b/integrations/zenoh/link-tunnel-cli/src/wake.rs
+@@ -5,19 +5,20 @@
+ //
+ // This program and the accompanying materials are made available under the
+ // terms of the Apache Software License 2.0 which is available at
+-// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license
+-// which is available at https://opensource.org/licenses/MIT.
++// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license which is
++// available at https://opensource.org/licenses/MIT.
+ //
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ 
+ use core::time::Duration;
+ 
++use anyhow::anyhow;
+ use iceoryx2::node::Node;
+ use iceoryx2::port::listener::Listener;
+ use iceoryx2::prelude::*;
+ use iceoryx2::service::service_name::ServiceName;
+ use iceoryx2_link_backend::WakeService;
+-use iceoryx2_log::{fail, info, warn};
++use iceoryx2_log::{fail, info};
+ 
+ use crate::ORIGIN;
+ use crate::cli::Cli;
+@@ -27,8 +28,10 @@ const DEFAULT_POLL_RATE_MS: u64 = 100;
+ 
+ pub struct WakeSources {
+     poll: Option<Duration>,
+-    tunnel: Option<Listener<WakeService>>,
++    backend: Option<Listener<WakeService>>,
+     user: Vec<Listener<ipc::Service>>,
++    #[cfg(target_os = "linux")]
++    local: Option<LocalDiscoveryWake>,
+ }
+ 
+ impl WakeSources {
+@@ -44,12 +47,18 @@ impl WakeSources {
+             Some(rate) => info!(from ORIGIN, "Polling at {}ms", rate),
+             None => info!(from ORIGIN, "Polling disabled"),
+         }
+-        let tunnel_listener = match cli.reactive {
++
++        #[cfg(not(target_os = "linux"))]
++        if cli.reactive {
++            anyhow::bail!("--reactive currently requires Linux inotify and pidfd support");
++        }
++
++        let backend = match cli.reactive {
+             true => {
+                 let listener = fail!(
+                     from ORIGIN,
+                     when tunnel.listener(),
+-                    "Failed to create the tunnel's listener"
++                    "Failed to create the tunnel's backend listener"
+                 );
+                 info!(from ORIGIN, "Reactive");
+                 Some(listener)
+@@ -61,40 +70,56 @@ impl WakeSources {
+             when open_user_listeners(tunnel.node(), &cli.listener),
+             "Failed to open the --listener event services"
+         );
++
++        #[cfg(target_os = "linux")]
++        let local = if cli.reactive {
++            Some(LocalDiscoveryWake::new(
++                tunnel.node().config(),
++                *tunnel.node().id(),
++            )?)
++        } else {
++            None
++        };
++
+         Ok(Self {
+             poll: poll.map(Duration::from_millis),
+-            tunnel: tunnel_listener,
++            backend,
+             user,
++            #[cfg(target_os = "linux")]
++            local,
+         })
+     }
+ 
+-    /// Attaches every source to `waitset`, for as long as the guards live.
++    pub fn is_reactive(&self) -> bool {
++        self.backend.is_some()
++    }
++
++    /// Attaches polling and explicit CLI listeners for one wait iteration.
+     pub fn attach<'w, 's>(
+         &'s self,
+         waitset: &'w WaitSet<ipc::Service>,
+     ) -> anyhow::Result<Attached<'w, 's>> {
+-        let interval = match self.poll {
+-            Some(interval) => Some(fail!(
+-                from ORIGIN,
+-                when waitset.attach_interval(interval),
+-                "Failed to attach the polling interval"
+-            )),
+-            None => None,
+-        };
++        let interval =
++            match self.poll {
++                Some(interval) => Some(waitset.attach_interval(interval).map_err(|error| {
++                    anyhow!("Failed to attach the polling interval: {error:?}")
++                })?),
++                None => None,
++            };
+         let mut listeners = Vec::with_capacity(1 + self.user.len());
+-        if let Some(listener) = &self.tunnel {
+-            listeners.push(fail!(
+-                from ORIGIN,
+-                when waitset.attach_notification(listener),
+-                "Failed to attach the tunnel's listener"
+-            ));
++        if let Some(listener) = &self.backend {
++            listeners.push(
++                waitset
++                    .attach_notification(listener)
++                    .map_err(|error| anyhow!("Failed to attach the backend listener: {error:?}"))?,
++            );
+         }
+         for listener in &self.user {
+-            listeners.push(fail!(
+-                from ORIGIN,
+-                when waitset.attach_notification(listener),
+-                "Failed to attach a --listener"
+-            ));
++            listeners.push(
++                waitset
++                    .attach_notification(listener)
++                    .map_err(|error| anyhow!("Failed to attach a --listener: {error:?}"))?,
++            );
+         }
+         Ok(Attached {
+             _interval: interval,
+@@ -102,14 +127,27 @@ impl WakeSources {
+         })
+     }
+ 
+-    /// Reads every pending notification, so a wake is consumed.
+-    pub fn drain(&self) {
+-        if let Some(listener) = &self.tunnel {
+-            drain(listener);
++    /// Drains only listeners owned by the CLI or backend. Bridge event listeners
++    /// are drained by bridge propagation after the wait guards have been dropped.
++    pub fn drain(&self) -> anyhow::Result<()> {
++        if let Some(listener) = &self.backend {
++            drain(listener)
++                .map_err(|error| anyhow!("Draining the backend listener failed: {error:?}"))?;
+         }
+         for listener in &self.user {
+-            drain(listener);
++            drain(listener).map_err(|error| anyhow!("Draining a --listener failed: {error:?}"))?;
+         }
++        Ok(())
++    }
++
++    #[cfg(target_os = "linux")]
++    pub fn local(&self) -> Option<&LocalDiscoveryWake> {
++        self.local.as_ref()
++    }
++
++    #[cfg(target_os = "linux")]
++    pub fn local_mut(&mut self) -> Option<&mut LocalDiscoveryWake> {
++        self.local.as_mut()
+     }
+ }
+ 
+@@ -145,8 +183,751 @@ fn open_user_listeners(
+     Ok(listeners)
+ }
+ 
+-fn drain<S: Service>(listener: &Listener<S>) {
+-    if let Err(error) = listener.try_wait(|_| {}) {
+-        warn!(from ORIGIN, "Draining a listener failed: {}", error);
++fn drain<S: Service>(
++    listener: &Listener<S>,
++) -> Result<(), iceoryx2::port::listener::ListenerWaitError> {
++    listener.try_wait(|_| {}).map(|_| ())
++}
++
++#[cfg(target_os = "linux")]
++mod linux {
++    use std::collections::{HashMap, HashSet};
++    use std::ffi::CString;
++    use std::fs;
++    use std::io;
++    use std::mem::size_of;
++    use std::os::unix::ffi::OsStrExt;
++    use std::path::{Path, PathBuf};
++    use std::ptr;
++
++    use anyhow::{Context, anyhow};
++    use iceoryx2::config::Config;
++    use iceoryx2::identifiers::UniqueNodeId;
++    use iceoryx2::node::{Node, NodeState};
++    use iceoryx2::prelude::{CallbackProgression, SemanticString, ipc};
++    use iceoryx2::waitset::{WaitSet, WaitSetGuard};
++    use iceoryx2_bb_posix::file_descriptor::{FileDescriptor, FileDescriptorBased};
++    use iceoryx2_bb_posix::file_descriptor_set::SynchronousMultiplexing;
++    use iceoryx2_bb_posix::process::ProcessId;
++
++    const WATCH_EVENTS: u32 = libc::IN_CREATE
++        | libc::IN_DELETE
++        | libc::IN_MOVED_FROM
++        | libc::IN_MOVED_TO
++        | libc::IN_DELETE_SELF
++        | libc::IN_MOVE_SELF;
++    const WATCH_MASK: u32 = WATCH_EVENTS | libc::IN_ONLYDIR | libc::IN_DONT_FOLLOW;
++
++    #[derive(Debug)]
++    struct MultiplexedFd {
++        descriptor: FileDescriptor,
++    }
++
++    impl MultiplexedFd {
++        /// Takes ownership of a descriptor returned by a successful Linux syscall.
++        fn from_owned_fd(descriptor: libc::c_int) -> Self {
++            // SAFETY: callers pass a valid, newly-owned descriptor and this wrapper closes it on drop.
++            Self {
++                descriptor: unsafe { FileDescriptor::new_unchecked(descriptor) },
++            }
++        }
++
++        fn raw(&self) -> libc::c_int {
++            // SAFETY: the descriptor remains owned by self and is not closed until self is dropped.
++            unsafe { self.descriptor.native_handle() }
++        }
++    }
++
++    impl FileDescriptorBased for MultiplexedFd {
++        fn file_descriptor(&self) -> &FileDescriptor {
++            &self.descriptor
++        }
++    }
++
++    impl SynchronousMultiplexing for MultiplexedFd {}
++
++    /// Linux local discovery wake source. The inotify fd watches only node-directory
++    /// lifecycle and service-tag changes; pidfds wake when another live node exits.
++    pub struct LocalDiscoveryWake {
++        config: Config,
++        local_node_id: UniqueNodeId,
++        node_dir: PathBuf,
++        service_tag_suffix: Vec<u8>,
++        inotify: MultiplexedFd,
++        root_watch: Option<libc::c_int>,
++        node_watches: HashMap<String, libc::c_int>,
++        pidfds: HashMap<UniqueNodeId, MultiplexedFd>,
++        node_monitor_prefix: Vec<u8>,
++        node_monitor_suffix: Vec<u8>,
++    }
++
++    impl LocalDiscoveryWake {
++        pub fn new(config: &Config, local_node_id: UniqueNodeId) -> anyhow::Result<Self> {
++            let descriptor = unsafe { libc::inotify_init1(libc::IN_NONBLOCK | libc::IN_CLOEXEC) };
++            if descriptor < 0 {
++                return Err(io::Error::last_os_error())
++                    .context("Failed to create the local discovery inotify descriptor");
++            }
++            let mut result = Self {
++                config: config.clone(),
++                local_node_id,
++                node_dir: PathBuf::from(config.global.node_dir().as_str()),
++                service_tag_suffix: config.global.node.service_tag_suffix.as_bytes().to_vec(),
++                inotify: MultiplexedFd::from_owned_fd(descriptor),
++                root_watch: None,
++                node_watches: HashMap::new(),
++                pidfds: HashMap::new(),
++                node_monitor_prefix: config.global.prefix.as_bytes().to_vec(),
++                node_monitor_suffix: config.global.node.monitor_suffix.as_bytes().to_vec(),
++            };
++            // Install the root watch before scanning, then scan again after installing
++            // per-node watches to close the initial discovery race.
++            result.ensure_root_watch()?;
++            result.refresh(&[])?;
++            Ok(result)
++        }
++
++        pub fn attach<'w>(
++            &'w self,
++            waitset: &'w WaitSet<ipc::Service>,
++        ) -> anyhow::Result<LocalAttached<'w>> {
++            let inotify = waitset
++                .attach_notification(&self.inotify)
++                .map_err(|error| anyhow!("Failed to attach inotify to the wait set: {error:?}"))?;
++            let mut pidfds = Vec::with_capacity(self.pidfds.len());
++            for (node_id, descriptor) in &self.pidfds {
++                let guard = waitset.attach_notification(descriptor).map_err(|error| {
++                    anyhow!("Failed to attach pidfd for node {node_id}: {error:?}")
++                })?;
++                pidfds.push((*node_id, guard));
++            }
++            Ok(LocalAttached { inotify, pidfds })
++        }
++
++        /// Refreshes node watches and pidfds after a wake. `exited` contains pidfds
++        /// that became readable in the just-completed wait iteration.
++        pub fn refresh(&mut self, exited: &[UniqueNodeId]) -> anyhow::Result<bool> {
++            let mut discover = false;
++            let exited: HashSet<_> = exited.iter().copied().collect();
++            for node_id in &exited {
++                if self.pidfds.remove(node_id).is_some() {
++                    discover = true;
++                }
++            }
++
++            // Drain, scan, and reconcile until the queue is quiet. Any root event
++            // consumed during a scan is followed by another directory scan, so a
++            // node created before Node::list reports it Alive still gets watched.
++            loop {
++                let (_, relevant) = self.read_event_batch()?;
++                discover |= relevant;
++                self.ensure_root_watch()?;
++                let live_nodes = self.live_nodes()?;
++                let node_directories = self.node_directories()?;
++                for node_id in &exited {
++                    if live_nodes.contains_key(node_id) {
++                        anyhow::bail!(
++                            "pidfd for node {node_id} became readable while Node::list still reports it alive"
++                        );
++                    }
++                }
++                let (watch_discover, rescan) = self.reconcile_node_watches(&node_directories)?;
++                discover |= watch_discover;
++                discover |= self.reconcile_pidfds(&live_nodes, &exited)?;
++
++                let (events_seen, relevant) = self.read_event_batch()?;
++                discover |= relevant;
++                if !events_seen && !rescan {
++                    break;
++                }
++            }
++            Ok(discover)
++        }
++
++        fn ensure_root_watch(&mut self) -> anyhow::Result<()> {
++            if self.root_watch.is_none() {
++                self.root_watch = Some(self.add_watch(&self.node_dir)?);
++            }
++            Ok(())
++        }
++
++        fn live_nodes(&self) -> anyhow::Result<HashMap<UniqueNodeId, Option<ProcessId>>> {
++            let mut ids = Vec::new();
++            Node::<ipc::Service>::list(&self.config, |state| {
++                if matches!(&state, NodeState::Alive(_)) {
++                    ids.push(*state.node_id());
++                }
++                CallbackProgression::Continue
++            })
++            .map_err(|error| {
++                anyhow!("Failed to list local nodes for reactive discovery: {error:?}")
++            })?;
++
++            let mut nodes = HashMap::with_capacity(ids.len());
++            for node_id in ids {
++                let pid = if node_id == self.local_node_id {
++                    None
++                } else {
++                    Some(node_id.pid::<ipc::Service>().map_err(|error| {
++                        anyhow!("Failed to read the process id for node {node_id}: {error:?}")
++                    })?)
++                };
++                nodes.insert(node_id, pid);
++            }
++            Ok(nodes)
++        }
++
++        fn node_directories(&self) -> anyhow::Result<HashSet<String>> {
++            let entries = fs::read_dir(&self.node_dir).with_context(|| {
++                format!(
++                    "Failed to scan local node directory {}",
++                    self.node_dir.display()
++                )
++            })?;
++            let mut node_directories = HashSet::new();
++            for entry in entries {
++                let entry = entry.context("Failed to read an entry in the local node directory")?;
++                let name = entry.file_name();
++                let Some(name) = name.to_str() else {
++                    continue;
++                };
++                if name.parse::<u128>().is_err() {
++                    continue;
++                }
++                match entry.file_type() {
++                    Ok(file_type) if file_type.is_dir() => {
++                        node_directories.insert(name.to_owned());
++                    }
++                    Ok(_) => (),
++                    Err(error) if error.raw_os_error() == Some(libc::ENOENT) => (),
++                    Err(error) => {
++                        return Err(error).with_context(|| {
++                            format!("Failed to inspect node directory entry {name:?}")
++                        });
++                    }
++                }
++            }
++            Ok(node_directories)
++        }
++
++        fn reconcile_node_watches(
++            &mut self,
++            node_directories: &HashSet<String>,
++        ) -> anyhow::Result<(bool, bool)> {
++            let removed: Vec<_> = self
++                .node_watches
++                .keys()
++                .filter(|name| !node_directories.contains(*name))
++                .cloned()
++                .collect();
++            let removed_any = !removed.is_empty();
++            let mut discover = false;
++            let mut rescan = false;
++            for node_id in removed {
++                if let Some(watch) = self.node_watches.remove(&node_id) {
++                    self.remove_watch(watch)?;
++                }
++            }
++
++            if removed_any {
++                // Consume IN_IGNORED before adding watches, so a reused watch
++                // descriptor cannot be mistaken for an older node directory.
++                let (events_seen, relevant) = self.read_event_batch()?;
++                rescan |= events_seen;
++                discover |= relevant;
++            }
++
++            for name in node_directories {
++                if self.node_watches.contains_key(name) {
++                    continue;
++                }
++                let path = self.node_dir.join(name);
++                match self.add_watch(&path) {
++                    Ok(watch) => {
++                        self.node_watches.insert(name.clone(), watch);
++                    }
++                    Err(error) if error.raw_os_error() == Some(libc::ENOENT) => {
++                        // The root watch observes a node directory created after
++                        // this scan. A removed directory is rechecked on the next pass.
++                        discover = true;
++                    }
++                    Err(error) => {
++                        return Err(error)
++                            .with_context(|| format!("Failed to watch node directory {name:?}"));
++                    }
++                }
++            }
++            Ok((discover, rescan))
++        }
++
++        fn reconcile_pidfds(
++            &mut self,
++            live_nodes: &HashMap<UniqueNodeId, Option<ProcessId>>,
++            exited: &HashSet<UniqueNodeId>,
++        ) -> anyhow::Result<bool> {
++            self.pidfds
++                .retain(|node_id, _| live_nodes.contains_key(node_id) && !exited.contains(node_id));
++
++            let mut discover = false;
++            for (node_id, pid) in live_nodes {
++                let Some(pid) = pid else {
++                    continue;
++                };
++                if self.pidfds.contains_key(node_id) || exited.contains(node_id) {
++                    continue;
++                }
++
++                let raw_descriptor =
++                    unsafe { libc::syscall(libc::SYS_pidfd_open, pid.value(), 0) as libc::c_int };
++                if raw_descriptor < 0 {
++                    let error = io::Error::last_os_error();
++                    if error.raw_os_error() == Some(libc::ESRCH) {
++                        if self.node_is_alive(*node_id)? {
++                            return Err(error).with_context(|| {
++                                format!(
++                                    "pidfd_open reported an exited process but node {node_id} is still alive"
++                                )
++                            });
++                        }
++                        discover = true;
++                        continue;
++                    }
++                    return Err(error)
++                        .with_context(|| format!("Failed to open a pidfd for node {node_id}"));
++                }
++
++                let descriptor = MultiplexedFd::from_owned_fd(raw_descriptor);
++                // Recheck after pidfd_open so a recycled PID cannot stand in for
++                // the process associated with this UniqueNodeId.
++                if !self.node_is_alive(*node_id)? {
++                    discover = true;
++                    continue;
++                }
++                self.pidfds.insert(*node_id, descriptor);
++            }
++            Ok(discover)
++        }
++
++        fn node_is_alive(&self, node_id: UniqueNodeId) -> anyhow::Result<bool> {
++            let state = Node::<ipc::Service>::state_of(&self.config, node_id).map_err(|error| {
++                anyhow!("Failed to recheck node {node_id} after pidfd registration: {error:?}")
++            })?;
++            Ok(matches!(state, Some(NodeState::Alive(_))))
++        }
++
++        fn add_watch(&self, path: &Path) -> io::Result<libc::c_int> {
++            let path = CString::new(path.as_os_str().as_bytes())
++                .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
++            let watch =
++                unsafe { libc::inotify_add_watch(self.inotify.raw(), path.as_ptr(), WATCH_MASK) };
++            if watch < 0 {
++                return Err(io::Error::last_os_error());
++            }
++            Ok(watch)
++        }
++
++        fn remove_watch(&self, watch: libc::c_int) -> io::Result<()> {
++            if unsafe { libc::inotify_rm_watch(self.inotify.raw(), watch) } == 0 {
++                return Ok(());
++            }
++            let error = io::Error::last_os_error();
++            if error.raw_os_error() == Some(libc::EINVAL) {
++                return Ok(());
++            }
++            Err(error)
++        }
++
++        #[cfg(test)]
++        fn read_events(&mut self) -> anyhow::Result<bool> {
++            self.read_event_batch().map(|(_, relevant)| relevant)
++        }
++
++        fn read_event_batch(&mut self) -> anyhow::Result<(bool, bool)> {
++            let mut events_seen = false;
++            let mut relevant = false;
++            let mut buffer = [0u8; 8192];
++            loop {
++                let bytes_read = unsafe {
++                    libc::read(self.inotify.raw(), buffer.as_mut_ptr().cast(), buffer.len())
++                };
++                if bytes_read < 0 {
++                    let error = io::Error::last_os_error();
++                    match error.raw_os_error() {
++                        Some(libc::EINTR) => continue,
++                        Some(libc::EAGAIN) => break,
++                        _ => return Err(error).context("Failed to read local discovery events"),
++                    }
++                }
++                if bytes_read == 0 {
++                    break;
++                }
++
++                events_seen = true;
++                let bytes_read = bytes_read as usize;
++                let mut offset = 0;
++                while offset < bytes_read {
++                    let header_size = size_of::<libc::inotify_event>();
++                    if bytes_read - offset < header_size {
++                        return Err(anyhow!("Truncated inotify event header"));
++                    }
++                    // SAFETY: the read buffer contains at least a complete inotify_event header;
++                    // read_unaligned handles the byte buffer's alignment.
++                    let event = unsafe {
++                        ptr::read_unaligned(
++                            buffer.as_ptr().add(offset).cast::<libc::inotify_event>(),
++                        )
++                    };
++                    let event_size = header_size + event.len as usize;
++                    if event_size > bytes_read - offset {
++                        return Err(anyhow!("Truncated inotify event name"));
++                    }
++                    let name_start = offset + header_size;
++                    let name_end = name_start + event.len as usize;
++                    let name = buffer[name_start..name_end]
++                        .split(|byte| *byte == 0)
++                        .next()
++                        .unwrap_or_default();
++                    relevant |= self.handle_event(event.wd, event.mask, name);
++                    offset += event_size;
++                }
++            }
++            Ok((events_seen, relevant))
++        }
++
++        fn handle_event(&mut self, watch: libc::c_int, mask: u32, name: &[u8]) -> bool {
++            if mask & libc::IN_IGNORED != 0 {
++                if self.root_watch == Some(watch) {
++                    self.root_watch = None;
++                }
++                self.node_watches.retain(|_, value| *value != watch);
++                return false;
++            }
++            if mask & libc::IN_Q_OVERFLOW != 0 {
++                return true;
++            }
++
++            if self.root_watch == Some(watch) {
++                if mask & (libc::IN_DELETE_SELF | libc::IN_MOVE_SELF) != 0 {
++                    self.root_watch = None;
++                    return true;
++                }
++                if mask & WATCH_EVENTS == 0 {
++                    return false;
++                }
++                return mask & libc::IN_ISDIR != 0 || self.is_node_monitor_file(name);
++            }
++
++            if self.node_watches.values().any(|value| *value == watch) {
++                if mask & (libc::IN_DELETE_SELF | libc::IN_MOVE_SELF) != 0 {
++                    return true;
++                }
++                return mask & WATCH_EVENTS != 0 && name.ends_with(&self.service_tag_suffix);
++            }
++            false
++        }
++
++        fn is_node_monitor_file(&self, name: &[u8]) -> bool {
++            let Some(name) = name.strip_suffix(self.node_monitor_suffix.as_slice()) else {
++                return false;
++            };
++            let Some(node_id) = name.strip_prefix(self.node_monitor_prefix.as_slice()) else {
++                return false;
++            };
++            !node_id.is_empty() && node_id.iter().all(u8::is_ascii_digit)
++        }
++
++        #[cfg(test)]
++        fn descriptor_count(&self) -> usize {
++            1 + self.node_watches.len() + self.pidfds.len()
++        }
++    }
++
++    pub struct LocalAttached<'w> {
++        pub inotify: WaitSetGuard<'w, 'w, ipc::Service>,
++        pub pidfds: Vec<(UniqueNodeId, WaitSetGuard<'w, 'w, ipc::Service>)>,
++    }
++
++    #[cfg(test)]
++    mod tests {
++        use std::fs;
++        use std::path::PathBuf;
++        use std::sync::atomic::{AtomicU64, Ordering};
++        use std::time::{Duration, Instant};
++
++        use iceoryx2::prelude::Path as IoxPath;
++        use iceoryx2::prelude::*;
++
++        use super::LocalDiscoveryWake;
++
++        static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
++
++        fn test_root() -> std::path::PathBuf {
++            let id = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
++            std::env::temp_dir().join(format!("iox2-zenoh-wake-{}-{id}", std::process::id()))
++        }
++
++        #[test]
++        fn startup_watches_existing_nodes_and_drop_releases_descriptors() {
++            const CHILD_GUARD: &str = "IOX2_WAKE_FD_CLEANUP_TEST_CHILD";
++            if std::env::var_os(CHILD_GUARD).is_none() {
++                let status = std::process::Command::new(std::env::current_exe().unwrap())
++                    .arg("--exact")
++                    .arg("wake::linux::tests::startup_watches_existing_nodes_and_drop_releases_descriptors")
++                    .arg("--nocapture")
++                    .env(CHILD_GUARD, "1")
++                    .status()
++                    .unwrap();
++                assert!(status.success(), "FD cleanup child test failed: {status}");
++                return;
++            }
++
++            let root = test_root();
++            fs::create_dir_all(&root).unwrap();
++            let mut config = Config::default();
++            config
++                .global
++                .set_root_path(&IoxPath::new(root.to_str().unwrap().as_bytes()).unwrap());
++            let node = NodeBuilder::new()
++                .config(&config)
++                .create::<ipc::Service>()
++                .unwrap();
++            let existing_service = node
++                .service_builder(&ServiceName::new("existing.service").unwrap())
++                .publish_subscribe::<u64>()
++                .create()
++                .unwrap();
++            let id = *node.id();
++            let descriptors_before = open_fd_count();
++
++            let mut wake = LocalDiscoveryWake::new(&config, id).unwrap();
++            assert!(wake.descriptor_count() >= 2);
++            assert!(!wake.refresh(&[]).unwrap());
++
++            {
++                let waitset = WaitSetBuilder::new().create::<ipc::Service>().unwrap();
++                let _attached = wake.attach(&waitset).unwrap();
++                let mut woke = false;
++                waitset
++                    .wait_and_process_once_with_timeout(
++                        |_| {
++                            woke = true;
++                            CallbackProgression::Continue
++                        },
++                        Duration::from_millis(30),
++                    )
++                    .unwrap();
++                assert!(!woke, "ordinary discovery reads must not trigger a wake");
++            }
++
++            drop(wake);
++            assert_eq!(open_fd_count(), descriptors_before);
++            drop(existing_service);
++            drop(node);
++            fs::remove_dir_all(root).unwrap();
++        }
++
++        #[test]
++        fn pending_numeric_node_directory_is_watched_before_registration_completes() {
++            let root = test_root();
++            fs::create_dir_all(&root).unwrap();
++            let mut config = Config::default();
++            config
++                .global
++                .set_root_path(&IoxPath::new(root.to_str().unwrap().as_bytes()).unwrap());
++            let node = NodeBuilder::new()
++                .config(&config)
++                .create::<ipc::Service>()
++                .unwrap();
++            let mut wake = LocalDiscoveryWake::new(&config, *node.id()).unwrap();
++
++            // Model NodeBuilder after mkdir(node_id) but before its monitoring
++            // token makes the node appear in Node::list as Alive.
++            let pending_id = "12345678901234567890";
++            let pending_dir = PathBuf::from(config.global.node_dir().as_str()).join(pending_id);
++            fs::create_dir(&pending_dir).unwrap();
++            assert!(wake.refresh(&[]).unwrap());
++            assert!(wake.node_watches.contains_key(pending_id));
++
++            fs::write(pending_dir.join("pending.service_tag"), []).unwrap();
++            assert!(wake.read_events().unwrap());
++
++            let monitor_file = format!(
++                "{}{}{}",
++                config.global.prefix.as_str(),
++                pending_id,
++                config.global.node.monitor_suffix.as_str()
++            );
++            fs::write(
++                PathBuf::from(config.global.node_dir().as_str()).join(monitor_file),
++                [],
++            )
++            .unwrap();
++            assert!(wake.read_events().unwrap());
++
++            drop(wake);
++            drop(node);
++            fs::remove_dir_all(root).unwrap();
++        }
++
++        #[test]
++        fn service_tag_events_wake_but_unrelated_file_events_do_not() {
++            let root = test_root();
++            fs::create_dir_all(&root).unwrap();
++            let mut config = Config::default();
++            config
++                .global
++                .set_root_path(&IoxPath::new(root.to_str().unwrap().as_bytes()).unwrap());
++            let node = NodeBuilder::new()
++                .config(&config)
++                .create::<ipc::Service>()
++                .unwrap();
++            let mut wake = LocalDiscoveryWake::new(&config, *node.id()).unwrap();
++
++            let node_dir = PathBuf::from(config.global.node_dir().as_str())
++                .join(node.id().value().to_string());
++            assert!(node_dir.is_dir());
++            assert!(
++                wake.node_watches
++                    .contains_key(&node.id().value().to_string())
++            );
++
++            fs::write(node_dir.join("unrelated.port_tag"), []).unwrap();
++            assert!(!wake.read_events().unwrap());
++
++            let service = node
++                .service_builder(&ServiceName::new("reactive.service.tag").unwrap())
++                .publish_subscribe::<u64>()
++                .create()
++                .unwrap();
++            assert!(
++                fs::read_dir(&node_dir)
++                    .unwrap()
++                    .filter_map(Result::ok)
++                    .any(|entry| entry
++                        .file_name()
++                        .to_string_lossy()
++                        .ends_with(config.global.node.service_tag_suffix.as_str()))
++            );
++            assert!(wake.read_events().unwrap());
++
++            drop(wake);
++            drop(service);
++            drop(node);
++            fs::remove_dir_all(root).unwrap();
++        }
++
++        #[test]
++        fn sigkill_node_exit_is_observed_by_pidfd() {
++            use std::process::{Command, Stdio};
++
++            let root = test_root();
++            fs::create_dir_all(&root).unwrap();
++            let mut config = Config::default();
++            config
++                .global
++                .set_root_path(&IoxPath::new(root.to_str().unwrap().as_bytes()).unwrap());
++            let local = NodeBuilder::new()
++                .config(&config)
++                .create::<ipc::Service>()
++                .unwrap();
++            let child = Command::new(std::env::current_exe().unwrap())
++                .arg("--exact")
++                .arg("wake::linux::tests::sigkill_node_exit_child")
++                .arg("--nocapture")
++                .env("IOX2_WAKE_TEST_ROOT", &root)
++                .stdout(Stdio::null())
++                .stderr(Stdio::null())
++                .spawn()
++                .unwrap();
++            let mut child = child;
++            let child_ready = root.join("child-ready");
++            let deadline = Instant::now() + Duration::from_secs(5);
++            while !child_ready.exists() && Instant::now() < deadline {
++                if let Some(status) = child.try_wait().unwrap() {
++                    panic!("watcher child exited before creating its node: {status}");
++                }
++                std::thread::sleep(Duration::from_millis(10));
++            }
++            assert!(child_ready.exists(), "watcher child did not become ready");
++
++            let child_pid = child.id() as libc::pid_t;
++            let mut child_node_id = None;
++            Node::<ipc::Service>::list(&config, |state| {
++                if matches!(&state, NodeState::Alive(_)) {
++                    let node_id = *state.node_id();
++                    if node_id
++                        .pid::<ipc::Service>()
++                        .is_ok_and(|pid| pid.value() == child_pid)
++                    {
++                        child_node_id = Some(node_id);
++                    }
++                }
++                CallbackProgression::Continue
++            })
++            .unwrap();
++            let child_node_id = child_node_id.expect("child node should be listed as alive");
++
++            let mut wake = LocalDiscoveryWake::new(&config, *local.id()).unwrap();
++            assert!(wake.pidfds.contains_key(&child_node_id));
++            child.kill().unwrap();
++            let _ = child.wait().unwrap();
++
++            let child_pidfd_ready = {
++                let waitset = WaitSetBuilder::new().create::<ipc::Service>().unwrap();
++                let attached = wake.attach(&waitset).unwrap();
++                let mut child_pidfd_ready = false;
++                waitset
++                    .wait_and_process_once_with_timeout(
++                        |attachment_id| {
++                            if attached.pidfds.iter().any(|(node_id, guard)| {
++                                *node_id == child_node_id && attachment_id.has_event_from(guard)
++                            }) {
++                                child_pidfd_ready = true;
++                            }
++                            CallbackProgression::Continue
++                        },
++                        Duration::from_secs(5),
++                    )
++                    .unwrap();
++                child_pidfd_ready
++            };
++            assert!(child_pidfd_ready, "child pidfd should wake the wait set");
++            assert!(wake.refresh(&[child_node_id]).unwrap());
++            assert!(!wake.pidfds.contains_key(&child_node_id));
++
++            drop(wake);
++            drop(local);
++            fs::remove_dir_all(root).unwrap();
++        }
++
++        #[test]
++        fn sigkill_node_exit_child() {
++            let Ok(root) = std::env::var("IOX2_WAKE_TEST_ROOT") else {
++                return;
++            };
++            let mut config = Config::default();
++            config
++                .global
++                .set_root_path(&IoxPath::new(root.as_bytes()).unwrap());
++            let node = NodeBuilder::new()
++                .config(&config)
++                .create::<ipc::Service>()
++                .unwrap();
++            fs::write(
++                PathBuf::from(root).join("child-ready"),
++                node.id().to_string(),
++            )
++            .unwrap();
++            loop {
++                std::thread::park();
++            }
++        }
++
++        fn open_fd_count() -> usize {
++            fs::read_dir("/proc/self/fd").unwrap().count()
++        }
+     }
+ }
++
++#[cfg(target_os = "linux")]
++pub use linux::LocalDiscoveryWake;

@@ -1,0 +1,12 @@
+# Deterministic two-host peer configuration for the isolated verifier.
+# Host A owns the TCP listener; the verifier's veth gives it 10.77.62.1.
+mode = "peer"
+
+[connect]
+endpoints = []
+
+[listen]
+endpoints = ["tcp/10.77.62.1:7447"]
+
+[scouting.multicast]
+enabled = false

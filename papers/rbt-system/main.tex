@@ -1,0 +1,334 @@
+% !TeX program = xelatex
+% Build: latexmk -xelatex -interaction=nonstopmode -halt-on-error main.tex
+\documentclass[UTF8,fontset=none,zihao=-4,a4paper]{ctexart}
+\usepackage[margin=24mm,headheight=16pt]{geometry}
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont[Scale=0.86]{DejaVu Sans Mono}
+\setCJKmainfont{Noto Serif CJK SC}[BoldFont={Noto Serif CJK SC Bold}]
+\setCJKsansfont{Noto Sans CJK SC}[BoldFont={Noto Sans CJK SC Bold}]
+\setCJKmonofont{Noto Sans Mono CJK SC}
+\usepackage{amsmath,amssymb,booktabs,tabularx,array,multirow}
+\usepackage{graphicx,xcolor,tikz,caption,enumitem,fancyhdr,float,placeins}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\usepackage[unicode,pdfencoding=auto,colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\usepackage{xurl}
+\hypersetup{pdftitle={RBT：面向真实机器人的跨语言运行时设计与工程验证},pdfauthor={RBT 项目组},pdfsubject={能力驱动组合、共享内存通信、生命周期、时间与空间变换}}
+\definecolor{rbtblue}{HTML}{214E75}
+\definecolor{rbtteal}{HTML}{267A78}
+\definecolor{rbtgray}{HTML}{596675}
+\definecolor{rbtlight}{HTML}{F1F5F8}
+\ctexset{section={format=\Large\sffamily\bfseries},subsection={format=\large\sffamily\bfseries},subsubsection={format=\normalsize\sffamily\bfseries}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{rbtgray}RBT：系统设计与工程验证}
+\fancyhead[R]{\small\sffamily\color{rbtgray}v0.8.0}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.18em}
+\linespread{1.15}
+\widowpenalty=10000
+\clubpenalty=10000
+\captionsetup{font=small,labelfont=bf,labelsep=quad}
+\setlist{nosep,leftmargin=2em}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.22}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\rbt}{\textsc{RBT}}
+\newcommand{\pass}{\textsf{PASS}}
+\newcommand{\notrun}{\textsf{NOT RUN}}
+\newcommand{\src}[1]{\nolinkurl{#1}}
+\emergencystretch=2em
+
+\title{\vspace{-1.4em}\sffamily\bfseries\LARGE RBT：面向真实机器人的跨语言运行时\\[0.25em]设计与工程验证\\[0.55em]\large\sffamily RBT: A Capability-Oriented Cross-Language Runtime\\for Real-Robot Systems}
+\author{RBT 项目组}
+\date{2026 年 10 月 20 日}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}
+机器人应用通常需要同时处理大体量传感数据、异构语言组件、依赖变化以及带有物理意义的时间与坐标关系。仅提供消息传输接口，难以统一回答组件何时能够运行、资源由谁持有、发布者替换后哪些数据仍然有效等问题。本文介绍面向 Linux 单机真实机器人应用的跨语言运行时 RBT。系统将生命周期与能力组合置于控制平面，将 Stream 和类型化 RPC 置于原生共享内存数据平面；通过区分逻辑组件、进程、激活和能力实例，使绑定、任务、通信端点及清理操作具有一致的所有权边界。在此基础上，RBT 提供由规范 IDL 生成的消息布局、事件驱动等待、Rust/C++/Python 一致的借用约束，以及复用显式时钟身份的本地坐标变换缓存。本文根据留存的源码快照和验收记录分析系统行为：完整软件验收的 50 个顶层验证项全部通过，覆盖六个跨语言方向、100 次提供者替换、10 次健康 Composer 重启及不少于 300 秒的软件浸泡；随后 0.8.0 发布制品的五项复核全部通过。结果支持所测试配置下的生命周期、互操作和资源边界结论。本文同时明确，物理相机 TF、真实动态位姿设备以及通用 TF 录制回放尚未获得相应验收，局部基准也不构成硬实时或跨框架性能优势证明。
+\end{abstract}
+\noindent\textbf{关键词：}机器人运行时；能力组合；零拷贝通信；生命周期；时空一致性
+
+\section{引言}
+真实机器人软件同时面临数据处理和运行状态管理两类问题。相机、点云和控制消息要求不同的队列策略；推理算法可能使用 Python，设备驱动和低层处理可能使用 C++，运行时和工具链则可能使用 Rust。与此同时，设备进程退出、模型任务失败、依赖暂时缺失和管理进程重启，均可能发生在数据仍被其他组件持有的时刻。一个通信端点仍然存在，并不意味着其逻辑提供者仍然有效；一个时间戳拥有纳秒单位，也不意味着它能与另一设备的读数直接比较。
+
+ROS 2 等系统已经形成成熟的组件、通信和工具生态\cite{ros2}。共享内存中间件 iceoryx2 则提供发布订阅、请求响应及事件等通信基础\cite{iceoryx2}。RBT 关注其上的一组具体工程约束：将\textbf{谁可以提供能力、能力依赖何时满足、通信资源何时销毁、数据的时间与发布权威何时失效}纳入同一运行时语义。本文不以新的共享内存算法为贡献，也不宣称替代现有机器人生态；系统目标是建立一个范围清晰、可安装、可核验的本地机器人执行基础。
+
+RBT 的核心设计包括三个方面。第一，以能力与需求描述组件关系，并将一次激活作为端点、任务和清理操作的共同所有权单位。第二，将控制平面的组合与恢复同数据平面的原生 Stream/RPC 分离，避免管理服务进入高频载荷路径。第三，在已有生命周期、通信和时间契约上构建空间变换，使静态配置恢复、动态历史查询和提供者替换遵守相同身份规则。本文给出这些机制的实现约束、失败语义及可追溯的软件验证结果。
+
+\section{问题定义与系统边界}
+\subsection{运行环境与故障模型}
+本文讨论 RBT 0.8.0 在小端 Linux x86\_64 上的单机多进程应用。各进程通过本地共享内存传递类型化载荷，通过 TCP/NDJSON 与 Composer 交换低频控制消息。支持的开发接口为 Rust、C++20 和 CPython/NumPy；本文实验中的 Python 发布制品使用 CPython 3.12。底层统一采用维护版本 iceoryx2 0.10.0-rbt.2，而非混合使用不同原生 ABI 的构建产物\cite{rbtcompat,rbtnative}。
+
+考虑的故障包括进程终止、依赖提供者消失、激活任务错误、控制连接中断，以及 Composer 与提供者的组合故障。系统通过重新连接、快照重建和依赖协调处理这些事件。本文不假设拜占庭进程、敌对共享内存写入或跨主机一致性，也没有建立操作系统调度的最坏执行时间界。因而，进程隔离与类型检查不能被解释为安全沙箱，软件浸泡通过也不能被解释为功能安全认证。
+
+\subsection{设计目标}
+系统目标可概括为四项约束：
+\begin{enumerate}
+  \item \textbf{依赖可解释。} 组件需求通过注册表解析到有效的类型匹配实例，并显式携带所选绑定；不能将服务名碰巧存在视为依赖满足。
+  \item \textbf{资源可归属。} 发布能力、通信端点和激活任务归属于同一次激活，旧实例的延迟事件不能破坏新实例。
+  \item \textbf{数据路径直接且有界。} 大载荷由原生共享内存端点交换，队列、借用、未发送 loan、RPC 在途工作和 TF 历史均具有显式上限。
+  \item \textbf{时空条件显式。} 传感数据的时间来源、坐标方向、发布权威和连续性被保留；条件不足时返回错误，不用猜测值填补。
+\end{enumerate}
+这里的“零拷贝”限定于兼容原生布局的本地载荷交换。设备到共享内存的采集、应用主动复制、Python 计算结果构造和 MCAP 文件编码仍可能产生复制；TF 还需要将样本解析为有界本地历史。该术语不表示端到端处理链完全没有内存移动。
+
+\section{能力驱动的运行时架构}
+\subsection{控制平面与数据平面}
+图\ref{fig:architecture}展示总体结构。Composer 维护组件快照、能力注册、需求解析和组合修订，输出激活或停用命令。Stream 样本以及 RPC 请求和响应均由组件直接交换，Composer 不转发 Image、PointCloud 或 TF 载荷。诊断信息可以随低频快照上报，但不会替代通信端点，也不应触发无关拓扑协调\cite{rbtarch}。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\small,>=Latex,
+ box/.style={draw=rbtblue,rounded corners=2pt,fill=rbtlight,align=center,minimum height=12mm,text width=40mm},
+ data/.style={draw=rbtteal,very thick,<->}, ctrl/.style={draw=rbtblue,dashed,<->}]
+\node[box,text width=61mm] (composer) at (0,2.45) {Composer\\能力解析、生命周期协调、快照恢复};
+\node[box] (a) at (-4.55,0) {Rust / C++ / Python\\提供者组件};
+\node[box] (b) at (0,0) {Rust / C++ / Python\\处理组件};
+\node[box] (c) at (4.55,0) {Rust / C++ / Python\\消费者组件};
+\draw[ctrl] (composer.south west) -- node[left,font=\footnotesize,align=right]{控制与\\完整快照} (a.north);
+\draw[ctrl] (composer.south) -- (b.north);
+\draw[ctrl] (composer.south east) -- node[right,font=\footnotesize,align=left]{绑定与\\诊断信息} (c.north);
+\draw[data] (a.south) -- ++(0,-.7) -| (b.south);
+\draw[data] (b.south) -- ++(0,-.7) -| (c.south);
+\node[font=\small,text=rbtteal] at (0,-1.85) {原生共享内存：Stream / Rpc；载荷不经过 Composer};
+\node[font=\footnotesize,text=rbtgray] at (0,3.45) {控制平面：TCP + NDJSON，低频状态与组合决策};
+\end{tikzpicture}
+\caption{RBT 的两平面结构。虚线表示控制和观测，实线表示组件间的原生载荷通道。}
+\label{fig:architecture}
+\end{figure}
+
+一个需求描述逻辑角色及其能力类型，而物理绑定指向某个实际能力实例及完整的传输描述。注册表按能力类型查找，在多个已注册提供者之间按 ComponentId 的字典序确定性选择；端点打开时另行执行消息 ABI 校验。提供者缺失使需求无法满足，所有者信息或描述不合法则在相应校验阶段被拒绝。这种通用能力选择策略不同于 TF 对同一子坐标系竞争权威的拒绝规则。将逻辑接口和物理实例分开，可以在提供者替换时保留消费者进程及其预处理状态，同时重新创建激活相关资源。
+
+\subsection{身份分层与陈旧事件隔离}
+表\ref{tab:identities}列出运行时身份。逻辑名称保持可读，物理身份承担实例隔离。能力服务名包含 \code{CapabilityInstanceId}，控制修订只在所属 Composer epoch 内比较。收到的命令还需匹配预期进程与激活，不能仅因序号较大就作用于任意资源。
+
+\begin{table}[htbp]
+\centering\small
+\caption{逻辑身份与物理身份的职责}\label{tab:identities}
+\begin{tabularx}{\textwidth}{lYY}
+\toprule
+身份 & 语义 & 变化时机 \\\midrule
+ComponentId & 应用中的逻辑组件名 & 跨进程重启可保持 \\
+ProcessInstanceId & 一次进程运行的 UUID & 进程启动 \\
+ActivationId & 当前进程接受的一次激活 & 重新激活 \\
+CapabilityInstanceId & 激活拥有的具体发布实例 & 能力重新创建 \\
+ComposerEpoch / Revision & 控制进程世代及世代内顺序 & Composer 重启 / 协调修订 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+可用如下约束概括能力的有效期，其中 $a$ 为其拥有者激活、$k$ 为能力实例：
+\begin{equation}
+  \mathrm{valid}(k)\ \Longrightarrow\ \mathrm{active}(\mathrm{owner}(k))\land \mathrm{owner}(k)=a.
+\end{equation}
+这是一项实现必须维持的设计不变量，不是对任意程序执行的形式化证明。它具体落实为激活成功后提交能力、停用时撤销发布，以及按完整实例身份处理控制命令和清理事件。
+
+\subsection{激活作用域与恢复}
+准备阶段面向进程寿命，例如加载模型和不可变配置；激活阶段面向当前绑定，拥有 EffectScope、端点及能力。关键任务失败使激活失效并影响依赖者，后台任务失败则作为诊断事件保留。停用先请求协作取消并等待受管任务退出，再执行清理；不能通过将任务遗留在全局执行器来绕过激活寿命。取消是协作式的：任意用户代码或第三方阻塞调用若不响应取消，仍可能延迟任务退出，运行时不保证强制抢占。
+
+图\ref{fig:lifecycle}给出简化的稳态与恢复关系。缺少需求导致 \code{BLOCKED}，不同于进程崩溃；已经持有有效绑定的组件，在单纯 Composer 断连时继续运行。Composer 恢复时以新的 epoch 接收完整快照，在恢复屏障后重建能力注册并协调实际缺失项。健康图的目标结果为“0 次停用、0 次激活”。当前实现使用两秒恢复屏障，未维护持久化的预期组件集合或显式快照结束标记，因而不能据此宣称分布式成员检测保证。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\small,>=Latex,node distance=13mm,
+ st/.style={draw=rbtblue,rounded corners,fill=rbtlight,minimum height=10mm,minimum width=25mm,align=center}]
+\node[st] (p) {准备};\node[st,right=of p] (b) {BLOCKED};
+\node[st,right=of b] (g) {ACTIVATING};\node[st,right=of g] (a) {ACTIVE};
+\node[st,below=17mm of g] (q) {QUIESCING};
+\node[st,below=17mm of a] (f) {FAILED};
+\draw[->] (p)--(b);\draw[->] (b)--node[above,font=\footnotesize]{需求满足}(g);\draw[->](g)--(a);
+\draw[->] (a)--node[above,sloped,font=\footnotesize]{绑定失效 / 停用}(q);
+\draw[->] (q)-| (b);\draw[->] (q)--(f);
+\draw[->] (a.north) to[out=65,in=115,looseness=6] node[above,font=\footnotesize,align=center]{仅 Composer 断连与健康恢复\\保持当前激活}(a.north);
+\end{tikzpicture}
+\caption{生命周期的简化示意。省略声明及部分错误转移，突出绑定寿命与控制连接状态的区别。}
+\label{fig:lifecycle}
+\end{figure}
+
+\section{跨语言通信与资源所有权}
+\subsection{规范 IDL 与本地消息 ABI}
+RBT 使用四份生产 IDL 输入生成 Rust 类型、C++ 头文件、描述符和 Python 元数据。消息分为固定布局对象，以及“固定头部加运行时连续元素区”的 slice。描述符包含命名空间、消息名、ABI major、形状、尺寸、对齐、字段与填充信息，以及 128 位布局哈希。哈希由带版本域的规范文本经 BLAKE3 截取获得；SDK 或生成器版本不是哈希输入\cite{rbtabi}。
+
+打开端点前必须验证描述符，布局不匹配直接拒绝。产品版本、IDL 语言版本、描述符版本、Composer 控制协议、快照格式和 MCAP 文件编码分别演进。当前值依次为 0.8.0、1、1、2、4 和 1。TF 的新增类型没有改变 Image、PointCloud、ControlCommand、Frame、Detection 及 StampedBytes 的既有布局哈希。规范 IDL 仍是有限的本地数据模型，并不提供任意对象图序列化或跨字节序兼容。
+
+\subsection{Loan、借用与压力边界}
+发布者取得原生 loan 后原位初始化载荷，发送消耗 loan，未发送对象析构则归还资源。订阅者持有接收 guard，只有 guard 有效时才允许读取样本。Rust 通过类型与寿命约束表达借用，C++ 通过 move-only RAII 对象管理释放，使用者仍需保证 span 不越过 guard 寿命。Python 接收的只读 NumPy 视图通过基对象保留原生样本；发布 loan 的可写别名必须在发送前释放，不能依靠隐式复制掩盖错误\cite{rbtpython}。
+
+两个默认 Stream profile 的取舍见表\ref{tab:pressure}。Sensor 为慢消费者保留更新的数据，Control 在饱和时报告类型化失败。多订阅者发送并非事务：一次 Control 发送失败时，其他订阅者可能已经收到该消息，因此自动重试可能制造重复效果。用户还需分别处理队列满、loan pool 耗尽与借用上限，而不能将它们统一为“通信失败”。
+
+\begin{table}[htbp]
+\centering\small
+\caption{默认 Stream 语义和资源上限}\label{tab:pressure}
+\begin{tabularx}{\textwidth}{lcccccY}
+\toprule
+Profile & 队列深度 & 历史 & 安全覆盖 & loan 上限 & 借用上限 & 饱和含义 \\\midrule
+Sensor & 1 & 0 & 开启 & 2 & 1 & 每个慢订阅者可替换未读样本 \\
+Control & 4 & 0 & 关闭 & 2 & 1 & 返回队列满或投递错误 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+资源上限约束端点持有的原生对象数量；应用若自行复制并无限缓存，仍可能耗尽进程内存。可观测指标包括当前及高水位 loan/borrow、失败次数和最旧借用年龄。原生接口未公开的逐订阅者队列占用和通用精确覆盖数保持未知，不能把缺失或陈旧指标写成零。
+
+\subsection{事件驱动等待与类型化 RPC}
+Stream 使用与载荷服务配对的 SidecarV1 事件就绪机制，WaitSet 将通信就绪、期限与取消纳入受控等待路径。事件负责唤醒，样本仍从原来的共享内存队列读取；该机制不另建一条 Python 载荷队列。公平性、取消唤醒和析构顺序与激活作用域结合，避免循环轮询和停用后的悬挂等待。
+
+RPC 复用同一原生基础，支持固定及 slice 请求/响应组合、显式容量、loan、响应 guard 和在途调用管理。能力描述记录请求与响应的 ABI 和资源约束；维护的原生实现保留客户端与请求关联，避免连接槽位复用后旧响应到达新请求。期限和取消只描述调用方等待状态，不能证明服务端没有执行，也不提供业务层“恰好一次”语义。需要重试的操作必须自行定义幂等或去重策略。
+
+\section{真实测量时间与本地空间变换}
+\subsection{时钟身份与显式映射}
+RBT 将维持运行时响应性的单调时间同描述物理测量的时间分开。Timestamp 由时钟身份和有符号 64 位纳秒读数组成；ClockIdentity 包含时钟种类、固定 source ID 和 generation。设备重启产生新 generation，使旧标定不能自然延续到新设备会话。HostClock、DeviceClock 和 ClockMapping 是共享的基础类型，TF 不再引入另一套时钟模型。多时钟 TF 路径要求提供从查询时钟到每条所用边时钟的直接有效映射；buffer 不自动求逆或串联多段映射。
+
+不同身份的读数只有在存在明确、有效的映射时才可转换。可将校准关系概念化写为
+\begin{equation}
+ t_{\mathrm{target}}=t_0+\frac{p}{q}(t_{\mathrm{source}}-s_0),
+ \qquad q>0,
+\end{equation}
+其中映射使用整数有理数参数，并检查运算溢出、源区间、目标身份、generation、有效期及不确定性。这是语义表达，具体字段以实现为准。未知采集时刻保持未知，时钟分辨率也不等同于物理测量精度。StampedBytes 将时间元数据和应用字节置于同一个原生样本，避免独立时间 sidecar 与载荷无法原子对应\cite{rbttime}。
+
+\subsection{变换方向与连续历史}
+RBT 用 $T_{A\leftarrow B}$ 表示将 $B$ 坐标系的点转换到 $A$：
+\begin{align}
+ \mathbf p_A &= R_{A\leftarrow B}\mathbf p_B+\mathbf t_{A\leftarrow B},\\
+ T_{A\leftarrow C} &= T_{A\leftarrow B}T_{B\leftarrow C}.
+\end{align}
+树中 parent--child 边保存 $T_{\mathrm{parent}\leftarrow\mathrm{child}}$。系统采用右手系、米、弧度、双精度及 $(x,y,z,w)$ 四元数顺序；输入需满足有限性和单位旋转约束。FrameId 为经过校验的有界规范名称，身份相等不依赖进程内随机哈希。
+
+动态边保留有界历史。对同一连续 epoch 中包围查询时刻的 $t_0,t_1$，令 $\alpha=(t-t_0)/(t_1-t_0)$，则平移采用线性插值、旋转采用最短路径 SLERP。查询超出历史、间隔超过允许值、epoch 不连续或时钟无法映射时均拒绝。\code{lookup\_at} 不隐式回退到最新值；当前 API 不提供自动选择共同最新时刻的接口；调用者若需要此策略，应先在契约外选择时刻，再调用指定时间查询。物理提供者身份与逻辑 FrameId 独立，不能按“最后到达的发布者”解决权威冲突。
+
+\subsection{静态快照恢复与局部查询}
+图\ref{fig:tf}展示静态与动态路径。静态提供者通过 RPC 暴露完整有界快照，通过 Stream 发布带修订的完整更新集合。二者使用不同物理能力 ID，更新 Stream 的身份作为图权威；配对描述必须来自同一组件、进程和激活。晚启动消费者先建立更新接收，再获取快照，按 authority 和 revision 合并；旧快照不能覆盖已接受的新状态。修订缺口触发有界重同步，周期性核对用于避免最后一次更新通知丢失后永久使用陈旧配置。配置生效时间也必须检查，不能将新外参直接应用到更早的样本。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\small,>=Latex,
+ box/.style={draw=rbtblue,rounded corners,fill=rbtlight,align=center,minimum height=12mm,text width=40mm}]
+\node[box,text width=38mm,minimum height=15mm] (s) at (-5,1.05) {静态权威提供者\\完整集合 / revision\\RPC 快照 + Stream 更新};
+\node[box,text width=38mm,minimum height=15mm] (d) at (-5,-1.15) {动态权威提供者\\Timestamp / epoch\\Stream 动态样本};
+\node[box,text width=45mm,minimum height=26mm] (b) at (0,.1) {消费者本地 TransformBuffer\\有界图与历史、时钟校验\\原子快照、冲突拒绝};
+\node[box,text width=32mm] (q) at (4.85,.1) {应用查询\\lookup\_at};
+\draw[->,rbtteal,thick] (s.east)--(b.north west);
+\draw[->,rbtteal,thick] (d.east)--(b.south west);
+\draw[<->,thick] (b.east)--(q.west);
+\node[font=\footnotesize,text=rbtgray,align=center] at (0,-2.45) {接收 guard 在提取数据后释放；lookup 不触发远程 RPC\\提供者解绑时移除其拥有的图与历史};
+\end{tikzpicture}
+\caption{TF 复用 Stream、RPC、时间和生命周期。每个消费者维护自己的局部视图，不设中央查询服务器。}
+\label{fig:tf}
+\end{figure}
+
+TransformBuffer 限制提供者、边、每边样本、总样本及待处理工作，且不长期保留共享内存接收 guard。子坐标系只允许唯一父节点和唯一权威，不接受环、自环及竞争权威路径。提供者替换会解绑旧权威并使相关历史失效，新激活使用新的物理能力身份。由此，局部查询不依赖一次实时 RPC 的成功，也不会把旧激活样本混入新发布者历史\cite{rbttf}。
+
+\section{开发工具、持久化与实现约束}
+\subsection{统一工作流与低频诊断}
+RBT 的工具链围绕 \code{doctor}、\code{new}、\code{check}、\code{run} 组织应用开发，Cargo 和 CMake 负责实际构建。诊断命令展示组件状态、需求原因、能力、Stream/RPC 资源，以及本地时间与 TF 视图。Composer 掌握能力与绑定元数据，不掌握每个消费者的完整 TF 图；因此其 TF 诊断只是一幅部分视图。显式输入的消费者快照可补充局部观测，但不是自动发现或远程载荷查询协议。
+
+Python 生命周期和 asyncio 适配器复用已有 Rust 运行时的身份分配、依赖解析和取消管理，未在 Python 中复制另一套状态机。Rust facade 统一暴露组件、控制、Stream、RPC、Time 和 TF；C++ TF 使用原生 C++ 端点。各语言共享消息契约和行为边界，而不是共享一层不透明的载荷序列化桥。
+
+\subsection{记录回放与兼容性}
+MCAP 定义 schema、channel 和 message 等文件记录\cite{mcap}。RBT 以确定的规范 schema 和 \code{rbt-canonical-v1} 编码建立持久化边界，而非将共享内存原始字节直接当作可移植文件。当前 recorder/player 的支持集合为 Image、PointCloud 和 ControlCommand；RPC 调用不被录制为可重放操作。回放使用新的组件与能力身份，按记录时间调度，不改变载荷内部的测量时间。通用 TF 消息录制回放尚未验证\cite{rbtmcap}。
+
+底层原生源码以受控补丁序列、源差异指纹和 C++ prefix provenance 统一管理。Rust、C++、Python 和安装 SDK 必须使用相同维护基线，消息布局哈希相同并不能证明两个不同原生版本的内部共享内存 ABI 兼容。当前 Rust 生产 unsafe 审计为 49 处既有位置加 24 处生成的 TF 安全声明，共 73 处；新增项限于明确审查的共享内存类型契约，不能将该计数本身当作内存安全证明\cite{rbtunsafe}。
+
+\section{工程验证与实验结果}
+\subsection{证据选择与可复核方法}
+本文整理既有实验，不为写作重新执行长时运行测试。主要依据是 2026 年 10 月 19 日完成的冻结候选完整验收，以及 10 月 20 日完成的 0.8.0 发布制品复核\cite{rbtreport}。前者仍使用 0.7.0 的预发布版本标签；软件接受后仅更新产品版本元数据，后者验证新 wheel、安装 SDK 和相关公开接口。两阶段均记录 350 个输入文件的 SHA-256 清单，阶段内检查未发现源码漂移。历史基准元数据未完整记录 CPU 型号、内核版本和背景负载，故这些结果的跨环境可复现性有限；不能用当前主机信息补写历史实验环境。这样既不把预发布标签隐去，也不将两阶段误称为同一份二进制。
+
+完整验收的“50/50”是顶层验证标签数量，不是全部断言或独立试验样本数。验收组合覆盖 TF、Time、RPC 和继承的生命周期、WaitSet、压力、Python、MCAP、开发体验与安装消费者。发布阶段五项分别为 TF quick、TF packages、Python Component quick、DX quick 和 Time external consumers。文中结果以对应记录的实际状态为准，历史失败与中断记录仍保留，未据最终通过追溯改写。
+
+\subsection{跨语言与故障恢复}
+表\ref{tab:verification}汇总当前接受的软件覆盖。六个有向语言组合覆盖 Rust、C++ 和 Python 之间的原生 TF 互操作；共享数学 fixture 另外检查方向、组合和插值的一致性。C++ 包含 Debug、Release、ASan 和 UBSan，TF 专项每种配置要求四个指定测试均出现且无跳过。以上实验支持给定类型、路径和构建配置的兼容性，不外推到任意用户消息或其他架构。
+
+\begin{table}[htbp]
+\centering\small
+\caption{接受的软件验证与明确未验证的边界}\label{tab:verification}
+\begin{tabularx}{\textwidth}{p{40mm}p{36mm}Y}
+\toprule
+验证项 & 记录结果 & 范围及解释 \\\midrule
+完整软件验收 & \pass，50/50 标签 & 8\,165.669 s；冻结候选，阶段内无源码漂移 \\
+0.8.0 发布制品复核 & \pass，5/5 项 & 1\,297.666 s；包含新 wheel 与外部消费者 \\
+跨语言 TF 传输 & \pass，6 个方向 & Rust、C++、Python 两两双向 \\
+提供者替换 & \pass，100/100 次 & 动态、快照、静态更新各观察到 101 个新实例 ID \\
+健康 Composer 重启 & \pass，10/10 次 & 激活保持，322/322 次正确查询 \\
+组合故障与混合浸泡 & \pass，各 $\geq300$ s & 生命周期、资源及任务 join 后端点退出证据 \\
+物理相机 TF / 动态 TF & \notrun & 未选择和打开设备，不以数学 fixture 替代 \\
+通用 TF MCAP 回放 & 未验证 & 不从继承 MCAP 验收推导该结论 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+100 次替换实验持续 1\,383.388 s。最终观测到的消费者查询计数为 47/47，而不是全部生命周期中的全局累计查询数；为每类端点观察到 101 个新身份，支持重建而非服务名复用的结论。10 次健康 Composer 重启实验持续 168.629 s，记录 322/322 次正确查询，并维持既有激活。实际进程替换模式不能直接观察每一条旧权威样本的拒绝，相关语义由单独的 buffer/native 测试补充；不同层次证据不合并为未经测量的全称保证。
+
+\subsection{资源边界与局部查询开销}
+\label{sec:resources}
+在提供者替换实验中，留存资源增长为 FD 0、RSS 1\,654\,784 B、线程 0；健康 Composer 重启实验对应为 FD 2、RSS 131\,072 B、线程 0。每进程峰值分别为 96/95 个 FD、20\,193\,280/18\,677\,760 B RSS 和 21/21 个线程。测量先确认真实通信与正确查询，再进行 5 s 预热及独立的 5 s 初始窗口。FD 保留增长比较初始与恢复后窗口最小值，采样周期 50 ms；RSS 与线程增长取高水位。长期存活消费者的初始基线不会在替换后重置。验收上限为保留 FD 增长 4、绝对 FD 128、RSS 增长 32 MiB、绝对 RSS 512 MiB、线程增长 4 及绝对线程 64。\par
+这些是相应探测规则下的有限窗口观测，不表示所有进程 RSS 之和，也不证明长期内存绝不增长。组合故障与混合浸泡分别持续 330.057 s 和 329.892 s，记录 440/440 与 560/560 次正确查询，均无查询错误。软件浸泡还在任务全部 join 后核对旧原生端点的压力源退出；运行中允许上限内的短暂 borrow，不能把任何非零瞬时借用都误判为泄漏。
+
+% BENCHMARK_RESULTS: numbers are inserted only after checking retained artifacts.
+\input{results.tex}
+
+\subsection{结果解释与有效性限制}
+这些验证主要回答实现能否按声明行为协作、在故障后保持身份边界，以及有界资源策略是否在给定负载下生效。它们没有建立控制周期抖动、最坏查询延迟或大规模机器人任务成功率。基准来自单一开发环境与有限运行，缺少系统性的跨机器重复、统计置信区间及与替代框架的同条件比较；因此本文不声称 RBT 比 ROS 2 或其他系统更快。
+
+物理相机 TF 与物理动态位姿验收均未执行，软件中的标定配置也不等于测量外参。时间不确定度是时间量，不是空间精度；即使局部数学 fixture 正确，设备采集源、标定误差、时钟同步以及真实机器人故障仍需独立验证。当前系统结论应限定在已记录的单机软件范围。
+
+\section{相关工作与讨论}
+ROS 2 的系统综述讨论了机器人中间件的模块化架构与实际部署\cite{ros2}；其 managed nodes 设计通过显式状态与转移管理节点寿命\cite{roslifecycle}。RBT 同样采用受管生命周期，但本文所强调的实现选择是将需求解析、激活所有权与物理能力实例绑定在一起，并将 Composer 断连同提供者失效分开处理。该差异是设计侧重点，不意味着其他系统无法通过扩展实现类似行为。
+
+iceoryx2 已提供跨进程零拷贝基础和多种通信模式\cite{iceoryx2}。RBT 对这些能力进行类型化封装、生命周期集成和跨语言一致性验证，而没有提出新的共享内存分配或投递算法。当前维护补丁用于固定原生关联、FFI 与相关工程行为；它们需要独立溯源，不能以应用层布局兼容代替原生 ABI 验证。
+
+ROS 的 tf2 采用随时间维护坐标关系并进行局部查询的设计\cite{tf2}。RBT 沿用机器人中成熟的坐标树与时间查询思想，针对本项目进一步明确独立设备时钟、动态连续 epoch、物理权威替换及静态快照/更新竞态。局部 TransformBuffer 降低查询对管理服务的即时依赖，但也意味着每个消费者重复持有有界状态；系统并未提供分布式坐标共识。MCAP 则提供可扩展文件容器\cite{mcap}，RBT 只为已支持类型定义其规范编码边界。
+
+当前取舍适用于边界明确的真实机器人本地处理图。未来工作包括真实硬件时钟和外参链路验证、长期与多机器重复测量，以及在另行定义兼容性边界后研究网络网关和通用录制。模拟时钟、参数系统、全局 TF 查询服务、标定求解器和完整 ROS 接口兼容不属于当前版本的已实现能力。
+
+\section{结论}
+本文介绍了 RBT 的跨语言机器人运行时设计。系统以能力决定依赖关系，以激活确定任务与资源寿命，以分离的控制与数据平面保持载荷路径直接，并将借用、容量、时钟身份和变换权威转化为可检查的契约。TF 的实现表明，空间基础设施可以复用既有 Stream、RPC、Time 与生命周期，而无需另建中央查询路径或运行时。留存的完整软件验收与发布制品复核支持所测试配置下的互操作、恢复和资源边界结论；物理设备、长期运行及跨环境性能仍是独立的验证任务。
+
+\appendix
+\section{实现与实验的可追溯入口}
+\label{app:repro}
+表\ref{tab:sources}列出本文依赖的仓库入口。源文件、实验结果和状态说明均随对应快照解释；本论文目录中的 \code{evidence.json} 保留数据定位与关键摘要，便于核对数值。复现实验需要准备相同原生基线和工具链；只编译本文档不需要执行机器人软件验收。
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{源码与证据定位（均相对仓库根目录）}\label{tab:sources}
+\begin{tabularx}{\textwidth}{p{36mm}Y}
+\toprule
+内容 & 入口 \\\midrule
+核心类型、生命周期与组合 & \src{crates/rbt-core}；\src{crates/rbt-compose} \\
+原生 Stream / RPC / 等待 & \src{crates/rbt-iox2}；\src{sdk/cpp} \\
+IDL 与生成产物 & \src{types}；\src{crates/rbt-idl}；\src{generated} \\
+Python 适配与类型声明 & \src{crates/rbt-python}；\src{python/rbt} \\
+时间与空间基础 & \src{crates/rbt-time}；\src{crates/rbt-time-stream}；\src{crates/rbt-tf}；\src{crates/rbt-tf-transport} \\
+当前文档与验收摘要 & \src{docs/README.md}；\src{docs/tf-report.md} \\
+完整软件验收 & \src{target/tf-systemd-full-20261019T163912Z/result.json} \\
+发布制品复核 & \src{target/tf-release-verification/run-20261020T012144Z-522975/result.json} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\FloatBarrier
+\begin{thebibliography}{99}
+\fontsize{9.5pt}{12pt}\selectfont\raggedright\setlength{\itemsep}{2pt}\setlength{\parskip}{0pt}
+\bibitem{ros2} Macenski S, Foote T, Gerkey B, et al. Robot Operating System 2: Design, Architecture, and Uses in the Wild[J]. Science Robotics, 2022, 7(66): eabm6074. \href{https://doi.org/10.1126/scirobotics.abm6074}{doi:10.1126/scirobotics.abm6074}.
+\bibitem{iceoryx2} Eclipse iceoryx2 Contributors. iceoryx2 v0.10.0: Zero-Copy Lock-Free IPC with a Rust Core[EB/OL]. [2026-10-20]. \url{https://github.com/eclipse-iceoryx/iceoryx2/tree/v0.10.0}.
+\bibitem{roslifecycle} ROS 2 Design. Managed Nodes[EB/OL]. 2015, updated 2021[2026-10-20]. \url{https://design.ros2.org/articles/node_lifecycle.html}.
+\bibitem{tf2} ROS 2 Documentation. About tf2: Jazzy Jalisco[EB/OL]. [2026-10-20]. 官方文档源码：\url{https://github.com/ros2/ros2_documentation/blob/jazzy/source/Concepts/Intermediate/About-Tf2.rst}.
+\bibitem{mcap} MCAP Contributors. MCAP Format Specification[EB/OL]. [2026-10-20]. \url{https://mcap.dev/spec}.
+\bibitem{rbtarch} RBT 项目组. RBT 0.8 架构与组件生命周期[软件文档]. 2026. \src{docs/architecture.md}; \src{docs/component-authoring.md}; 能力选择实现见 \src{crates/rbt-compose/src/registry.rs}.
+\bibitem{rbtabi} RBT 项目组. 规范 IDL 与本地消息 ABI[软件文档]. 2026. \src{docs/idl.md}; \src{docs/abi.md}.
+\bibitem{rbtcompat} RBT 项目组. RBT 兼容性策略[软件文档]. 2026. \src{docs/compatibility.md}.
+\bibitem{rbtnative} RBT 项目组. Unified Maintained iceoryx2 Baseline[软件文档与验证报告]. 2026. \src{third_party/iceoryx2-rbt/README.md}; \src{docs/iceoryx2-unified-report.md}.
+\bibitem{rbtpython} RBT 项目组. Python SDK 与 Component Runtime[软件文档]. 2026. \src{docs/python.md}; \src{docs/python-component.md}; \src{docs/python-asyncio.md}.
+\bibitem{rbttime} RBT 项目组. Real-Hardware Time[软件文档]. 2026. \src{docs/time.md}; \src{docs/time-report.md}.
+\bibitem{rbttf} RBT 项目组. Transform Frames and Lookups[软件文档]. 2026. \src{docs/tf.md}; \src{docs/tf-architecture.md}.
+\bibitem{rbtmcap} RBT 项目组. MCAP Recording and Playback[软件文档]. 2026. \src{docs/mcap.md}.
+\bibitem{rbtunsafe} RBT 项目组. TF Generated Unsafe Review[审计记录]. 2026. \src{docs/tf-unsafe-review.md}.
+\bibitem{rbtreport} RBT 项目组. rbt v0.8 Spatial Transforms: Acceptance Report[软件验收报告]. 2026-10-20. \src{docs/tf-report.md}. 实验原始结果定位见附录\ref{app:repro}及随文证据清单。
+\end{thebibliography}
+\end{document}

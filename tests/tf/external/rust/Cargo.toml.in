@@ -1,0 +1,10 @@
+[package]
+name = "rbt-tf-external-consumer"
+version = "0.0.0"
+edition = "2024"
+
+[workspace]
+
+[dependencies]
+rbt = { path = "@RBT_INSTALLED_RUST_SDK@/crates/rbt" }
+rbt-types = { path = "@RBT_INSTALLED_RUST_SDK@/crates/rbt-types" }

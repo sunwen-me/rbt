@@ -1,0 +1,33 @@
+{
+  "format": "rbt-stamped-bytes-interop-v1",
+  "descriptor": {
+    "namespace": "rbt.time",
+    "name": "StampedBytes",
+    "abi_major": 1,
+    "header_size": 8,
+    "header_alignment": 8,
+    "element_size": 1,
+    "element_alignment": 1,
+    "layout_hash": "97e9a924992dedfe83196197cccb6b35",
+    "prefix_bytes": 192
+  },
+  "sample": {
+    "sequence": 4242,
+    "capture": {
+      "kind": "device",
+      "source_id": "444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000",
+      "generation": 7,
+      "nanoseconds": 123456789
+    },
+    "received": {
+      "kind": "device",
+      "source_id": "444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000",
+      "generation": 7,
+      "nanoseconds": 987654321
+    },
+    "capture_uncertainty_ns": 2,
+    "received_uncertainty_ns": 1,
+    "application_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "application_fnv1a64": "e6cb594c1a148ac5"
+  }
+}

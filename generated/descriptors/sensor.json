@@ -1,0 +1,180 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.sensor",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.sensor",
+      "namespace": "rbt.sensor",
+      "name": "Image",
+      "abi_major": 1,
+      "shape": "slice",
+      "header_type": "ImageHeader",
+      "header_size": 32,
+      "header_align": 8,
+      "element_type": "u8",
+      "element_size": 1,
+      "element_align": 1,
+      "layout_hash": "943fa4008cf0f55f89a281b051c69a6f",
+      "signature": "header(sequence:u64@0,timestamp_ns:u64@8,width:u32@16,height:u32@20,stride:u32@24,encoding:PixelFormat@28,padding:none);element:u8@0",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "timestamp_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "width",
+          "ty": "u32",
+          "offset": 16,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "height",
+          "ty": "u32",
+          "offset": 20,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "stride",
+          "ty": "u32",
+          "offset": 24,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "encoding",
+          "ty": "PixelFormat",
+          "offset": 28,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.sensor",
+      "namespace": "rbt.sensor",
+      "name": "PointCloud",
+      "abi_major": 1,
+      "shape": "slice",
+      "header_type": "PointCloudHeader",
+      "header_size": 32,
+      "header_align": 8,
+      "element_type": "PointXYZI",
+      "element_size": 16,
+      "element_align": 4,
+      "layout_hash": "d9da2bb29bb2cf217c40f1a56d1fb755",
+      "signature": "header(sequence:u64@0,timestamp_ns:u64@8,width:u32@16,height:u32@20,dense:u8@24,reserved:[u8;7]@25,padding:none);element:PointXYZI(x:f32@0,y:f32@4,z:f32@8,intensity:f32@12)",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "timestamp_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "width",
+          "ty": "u32",
+          "offset": 16,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "height",
+          "ty": "u32",
+          "offset": 20,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "dense",
+          "ty": "u8",
+          "offset": 24,
+          "size": 1,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u8[7]",
+          "offset": 25,
+          "size": 7,
+          "align": 1,
+          "array_length": 7
+        }
+      ],
+      "element_fields": [
+        {
+          "name": "x",
+          "ty": "f32",
+          "offset": 0,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "y",
+          "ty": "f32",
+          "offset": 4,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "z",
+          "ty": "f32",
+          "offset": 8,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "intensity",
+          "ty": "f32",
+          "offset": 12,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ]
+    }
+  ]
+}

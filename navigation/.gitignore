@@ -1,0 +1,5 @@
+# The repository's crash-dump rule named 'core' also matches this source folder.
+!include/
+!include/rbt_navigation/
+!include/rbt_navigation/core/
+!include/rbt_navigation/core/**

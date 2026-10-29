@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.22)
+project(rbt_tf_external_consumer LANGUAGES CXX)
+
+if(NOT DEFINED RBT_EXPECTED_VERSION)
+    message(FATAL_ERROR "RBT_EXPECTED_VERSION must be supplied by the package gate")
+endif()
+if(NOT DEFINED RBT_EXPECTED_PREFIX)
+    message(FATAL_ERROR "RBT_EXPECTED_PREFIX must be supplied by the package gate")
+endif()
+
+find_package(rbt ${RBT_EXPECTED_VERSION} EXACT REQUIRED CONFIG)
+get_filename_component(_rbt_actual_config_dir "${rbt_DIR}" REALPATH)
+get_filename_component(_rbt_expected_config_dir "${RBT_EXPECTED_PREFIX}/lib/cmake/rbt" REALPATH)
+if(NOT _rbt_actual_config_dir STREQUAL _rbt_expected_config_dir)
+    message(FATAL_ERROR "external TF consumer resolved rbt outside its installed prefix: ${rbt_DIR}")
+endif()
+
+add_executable(tf_external_consumer main.cpp)
+target_compile_features(tf_external_consumer PRIVATE cxx_std_20)
+target_compile_options(tf_external_consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_link_libraries(tf_external_consumer PRIVATE rbt::runtime rbt::iox2)

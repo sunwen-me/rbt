@@ -1,0 +1,12 @@
+[package]
+name = "{{package_name}}"
+version = "{{sdk_version}}"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+rbt = { path = "{{sdk_root}}/crates/rbt" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }

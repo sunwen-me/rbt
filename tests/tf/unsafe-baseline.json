@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "files": {
+    "crates/rbt-bench/src/lib.rs": {
+      "count": 2,
+      "markers": [
+        "    let result = unsafe { libc::clock_gettime(libc::CLOCK_PROCESS_CPUTIME_ID, &mut time) };",
+        "    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };"
+      ]
+    },
+    "crates/rbt-python/src/lib.rs": {
+      "count": 18,
+      "markers": [
+        "unsafe fn fill_readonly_buffer(",
+        "    unsafe {",
+        "unsafe fn release_readonly_buffer(view: *mut ffi::Py_buffer) {",
+        "    unsafe {",
+        "unsafe fn fill_writable_buffer(",
+        "    unsafe {",
+        "    unsafe fn __getbuffer__(",
+        "        unsafe { fill_writable_buffer(view, flags, address, len, slf.into_any()) }",
+        "    unsafe fn __getbuffer__(",
+        "        unsafe { fill_writable_buffer(view, flags, address, len, slf.into_any()) }",
+        "    unsafe fn __getbuffer__(",
+        "        let result = unsafe { fill_readonly_buffer(view, flags, data, len, slf.into_any()) };",
+        "    unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {",
+        "        unsafe { release_readonly_buffer(view) }",
+        "    unsafe fn __getbuffer__(",
+        "        unsafe { fill_readonly_buffer(view, flags, data, len, slf.into_any()) }",
+        "    unsafe fn __releasebuffer__(&self, view: *mut ffi::Py_buffer) {",
+        "        unsafe { release_readonly_buffer(view) }"
+      ]
+    },
+    "crates/rbt-types/src/lib.rs": {
+      "count": 11,
+      "markers": [
+        "pub unsafe trait ShmSafe: Copy + fmt::Debug + 'static {}",
+        "unsafe impl ShmSafe for u8 {}",
+        "unsafe impl ShmSafe for u16 {}",
+        "unsafe impl ShmSafe for u32 {}",
+        "unsafe impl ShmSafe for u64 {}",
+        "unsafe impl ShmSafe for i8 {}",
+        "unsafe impl ShmSafe for i16 {}",
+        "unsafe impl ShmSafe for i32 {}",
+        "unsafe impl ShmSafe for i64 {}",
+        "unsafe impl ShmSafe for f32 {}",
+        "unsafe impl ShmSafe for f64 {}"
+      ]
+    },
+    "generated/rust/demo.rs": {
+      "count": 4,
+      "markers": [
+        "unsafe impl crate::ShmSafe for Frame {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for Frame { unsafe fn type_name() -> &'static str { \"rbt.demo/Frame@1\" } }",
+        "unsafe impl crate::ShmSafe for Detection {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for Detection { unsafe fn type_name() -> &'static str { \"rbt.demo/Detection@1\" } }"
+      ]
+    },
+    "generated/rust/control.rs": {
+      "count": 2,
+      "markers": [
+        "unsafe impl crate::ShmSafe for ControlCommand {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for ControlCommand { unsafe fn type_name() -> &'static str { \"rbt.control/ControlCommand@1\" } }"
+      ]
+    },
+    "generated/rust/sensor.rs": {
+      "count": 12,
+      "markers": [
+        "unsafe impl crate::ShmSafe for PixelFormat {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for PixelFormat { unsafe fn type_name() -> &'static str { \"rbt.sensor/PixelFormat@1\" } }",
+        "unsafe impl crate::ShmSafe for ImageHeader {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for ImageHeader { unsafe fn type_name() -> &'static str { \"rbt.sensor/ImageHeader@1\" } }",
+        "unsafe impl crate::ShmSafe for PointCloudHeader {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for PointCloudHeader { unsafe fn type_name() -> &'static str { \"rbt.sensor/PointCloudHeader@1\" } }",
+        "unsafe impl crate::ShmSafe for PointXYZI {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for PointXYZI { unsafe fn type_name() -> &'static str { \"rbt.sensor/PointXYZI@1\" } }",
+        "unsafe impl crate::ShmSafe for Image {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for Image { unsafe fn type_name() -> &'static str { \"rbt.sensor/Image@1\" } }",
+        "unsafe impl crate::ShmSafe for PointCloud {}",
+        "unsafe impl iceoryx2::prelude::ZeroCopySend for PointCloud { unsafe fn type_name() -> &'static str { \"rbt.sensor/PointCloud@1\" } }"
+      ]
+    }
+  }
+}

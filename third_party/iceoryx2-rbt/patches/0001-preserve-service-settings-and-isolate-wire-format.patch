@@ -1,0 +1,781 @@
+diff --git a/iceoryx2-link/backend/src/service_description/descriptor.rs b/iceoryx2-link/backend/src/service_description/descriptor.rs
+index 3a7fa523e..6e7a0a9a4 100644
+--- a/iceoryx2-link/backend/src/service_description/descriptor.rs
++++ b/iceoryx2-link/backend/src/service_description/descriptor.rs
+@@ -14,16 +14,17 @@ use iceoryx2::service::service_hash::ServiceHash;
+ use iceoryx2::service::service_name::ServiceName;
+ use serde::{Deserialize, Serialize};
+ 
+-use crate::service_description::{ServiceDescription, ServiceTypes};
++use crate::service_description::{ServiceDescription, ServiceSettings, ServiceTypes};
+ 
+ /// What identifies a service across the boundary.
+ ///
+-/// Services with the same descriptor can exchange data, whatever
+-/// their settings.
++/// Services with the same descriptor can exchange data with matching
++/// settings and types.
+ #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+ pub struct ServiceDescriptor {
+     pub name: ServiceName,
+     pub hash: ServiceHash,
++    pub settings: ServiceSettings,
+     pub types: ServiceTypes,
+ }
+ 
+@@ -32,6 +33,7 @@ impl From<&ServiceDescription> for ServiceDescriptor {
+         Self {
+             name: description.name(),
+             hash: description.hash,
++            settings: description.settings.clone(),
+             types: description.types.clone(),
+         }
+     }
+diff --git a/iceoryx2-link/backend/src/service_description/mod.rs b/iceoryx2-link/backend/src/service_description/mod.rs
+index b6910eb0a..984bca79b 100644
+--- a/iceoryx2-link/backend/src/service_description/mod.rs
++++ b/iceoryx2-link/backend/src/service_description/mod.rs
+@@ -27,6 +27,7 @@ pub use types::{
+ 
+ use iceoryx2::config::Config;
+ use iceoryx2::service::Service;
++use iceoryx2::service::messaging_pattern::MessagingPattern as HashPattern;
+ use iceoryx2::service::service_hash::ServiceHash;
+ use iceoryx2::service::service_name::ServiceName;
+ use iceoryx2::service::static_config::StaticConfig;
+@@ -41,6 +42,37 @@ pub struct ServiceDescription {
+ }
+ 
+ impl ServiceDescription {
++    /// Reconstructs the description carried by a remote descriptor after
++    /// verifying its name, pattern, and hash agree with one another.
++    pub fn from_descriptor<S: Service>(
++        descriptor: &ServiceDescriptor,
++    ) -> Result<Self, InvalidServiceDescriptor> {
++        if descriptor.settings.id() != descriptor.name {
++            return Err(InvalidServiceDescriptor::NameMismatch);
++        }
++
++        let settings_pattern = descriptor.settings.pattern.messaging_pattern();
++        let types_pattern = match &descriptor.types {
++            ServiceTypes::PublishSubscribe(_) => HashPattern::PublishSubscribe,
++            ServiceTypes::Event => HashPattern::Event,
++        };
++        if settings_pattern != types_pattern {
++            return Err(InvalidServiceDescriptor::PatternMismatch);
++        }
++
++        let expected_hash =
++            ServiceHash::new::<S::ServiceNameHasher>(&descriptor.name, settings_pattern);
++        if descriptor.hash != expected_hash {
++            return Err(InvalidServiceDescriptor::HashMismatch);
++        }
++
++        Ok(Self {
++            hash: descriptor.hash,
++            settings: descriptor.settings.clone(),
++            types: descriptor.types.clone(),
++        })
++    }
++
+     /// The description of the publish-subscribe service `name` with these
+     /// settings and types, hashed with the name hasher of `S`.
+     pub fn compose_publish_subscribe<S: Service>(
+@@ -115,6 +147,22 @@ impl ServiceDescription {
+     }
+ }
+ 
++/// Why a remote service descriptor is internally inconsistent.
++#[derive(Debug, Clone, Copy, Eq, PartialEq)]
++pub enum InvalidServiceDescriptor {
++    NameMismatch,
++    PatternMismatch,
++    HashMismatch,
++}
++
++impl core::fmt::Display for InvalidServiceDescriptor {
++    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
++        write!(f, "InvalidServiceDescriptor::{self:?}")
++    }
++}
++
++impl core::error::Error for InvalidServiceDescriptor {}
++
+ /// The [`StaticConfig`] has a messaging pattern the link does not carry.
+ #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+ pub struct UnsupportedPattern;
+@@ -186,6 +234,14 @@ mod tests {
+     use iceoryx2::testing::{generate_isolated_config, generate_service_name};
+     use iceoryx2_bb_testing::assert_that;
+ 
++    fn descriptor_for_validation() -> ServiceDescriptor {
++        let description = ServiceDescription::compose_event::<local::Service>(
++            ServiceName::new("service/descriptor-validation").expect("valid service name"),
++            EventSettings::from_config(&Config::default()),
++        );
++        ServiceDescriptor::from(&description)
++    }
++
+     /// The static config of the service `name` of `pattern` in the
+     /// system of `config`.
+     pub(super) fn static_config_of<S: iceoryx2::service::Service>(
+@@ -369,4 +425,60 @@ mod tests {
+         assert_that!(sut.settings.pattern, eq PatternSettings::Event(EventSettings::from_config(&config)));
+         assert_that!(sut.types, eq ServiceTypes::Event);
+     }
++
++    #[test]
++    fn a_consistent_descriptor_reconstructs_its_description() {
++        let descriptor = descriptor_for_validation();
++        let expected = ServiceDescription {
++            hash: descriptor.hash,
++            settings: descriptor.settings.clone(),
++            types: descriptor.types.clone(),
++        };
++
++        let result = ServiceDescription::from_descriptor::<local::Service>(&descriptor);
++
++        assert_that!(result, eq Ok(expected));
++    }
++
++    #[test]
++    fn a_descriptor_with_a_different_settings_name_is_rejected() {
++        let mut descriptor = descriptor_for_validation();
++        descriptor.settings = ServiceSettings::new(
++            ServiceName::new("service/other-name").expect("valid service name"),
++            descriptor.settings.pattern.clone(),
++        );
++
++        let result = ServiceDescription::from_descriptor::<local::Service>(&descriptor);
++
++        assert_that!(result, eq Err(InvalidServiceDescriptor::NameMismatch));
++    }
++
++    #[test]
++    fn a_descriptor_with_a_pattern_that_conflicts_with_its_types_is_rejected() {
++        let mut descriptor = descriptor_for_validation();
++        descriptor.settings = ServiceSettings::new(
++            descriptor.name,
++            PatternSettings::PublishSubscribe(PublishSubscribeSettings::from_config(
++                &Config::default(),
++            )),
++        );
++
++        let result = ServiceDescription::from_descriptor::<local::Service>(&descriptor);
++
++        assert_that!(result, eq Err(InvalidServiceDescriptor::PatternMismatch));
++    }
++
++    #[test]
++    fn a_descriptor_with_a_hash_that_conflicts_with_its_name_is_rejected() {
++        let mut descriptor = descriptor_for_validation();
++        descriptor.hash = ServiceDescription::compose_event::<local::Service>(
++            ServiceName::new("service/other-hash").expect("valid service name"),
++            EventSettings::from_config(&Config::default()),
++        )
++        .hash();
++
++        let result = ServiceDescription::from_descriptor::<local::Service>(&descriptor);
++
++        assert_that!(result, eq Err(InvalidServiceDescriptor::HashMismatch));
++    }
+ }
+diff --git a/iceoryx2-link/backend/src/service_description/settings.rs b/iceoryx2-link/backend/src/service_description/settings.rs
+index c7608a06d..d8c7cc080 100644
+--- a/iceoryx2-link/backend/src/service_description/settings.rs
++++ b/iceoryx2-link/backend/src/service_description/settings.rs
+@@ -27,7 +27,7 @@ pub trait Identified {
+ }
+ 
+ /// The settings of a service's pattern, identified by the service's name.
+-#[derive(Debug, Clone, PartialEq, Eq)]
++#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+ pub struct ServiceSettings {
+     name: ServiceName,
+     pub pattern: PatternSettings,
+@@ -48,7 +48,7 @@ impl Identified for ServiceSettings {
+ }
+ 
+ /// The settings of a service's pattern.
+-#[derive(Debug, Clone, PartialEq, Eq)]
++#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+ pub enum PatternSettings {
+     PublishSubscribe(PublishSubscribeSettings),
+     Event(EventSettings),
+@@ -65,7 +65,7 @@ impl PatternSettings {
+ }
+ 
+ /// The settings a publish-subscribe service is created with.
+-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
++#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+ pub struct PublishSubscribeSettings {
+     pub max_subscribers: usize,
+     pub max_publishers: usize,
+@@ -94,18 +94,40 @@ impl PublishSubscribeSettings {
+ }
+ 
+ /// The settings an event service is created with.
+-#[derive(Debug, Clone, Eq, PartialEq)]
++#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+ pub struct EventSettings {
+     pub max_notifiers: usize,
+     pub max_listeners: usize,
+     pub max_nodes: usize,
+     pub event_id_max_value: usize,
+     pub deadline: Option<Duration>,
++    #[serde(with = "event_id_option")]
+     pub notifier_created_event: Option<EventId>,
++    #[serde(with = "event_id_option")]
+     pub notifier_dropped_event: Option<EventId>,
++    #[serde(with = "event_id_option")]
+     pub notifier_dead_event: Option<EventId>,
+ }
+ 
++mod event_id_option {
++    use iceoryx2::port::event_id::EventId;
++    use serde::{Deserialize, Deserializer, Serialize, Serializer};
++
++    pub fn serialize<S>(value: &Option<EventId>, serializer: S) -> Result<S::Ok, S::Error>
++    where
++        S: Serializer,
++    {
++        value.as_ref().map(EventId::as_value).serialize(serializer)
++    }
++
++    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<EventId>, D::Error>
++    where
++        D: Deserializer<'de>,
++    {
++        Option::<usize>::deserialize(deserializer).map(|value| value.map(EventId::new))
++    }
++}
++
+ impl EventSettings {
+     /// The settings an event service created with `config` receives when
+     /// none are specified.
+diff --git a/iceoryx2-link/conformance-tests/src/testing.rs b/iceoryx2-link/conformance-tests/src/testing.rs
+index be6f409a3..789a23111 100644
+--- a/iceoryx2-link/conformance-tests/src/testing.rs
++++ b/iceoryx2-link/conformance-tests/src/testing.rs
+@@ -36,8 +36,8 @@ use iceoryx2_link::Link;
+ use crate::parameters::{PayloadShape, PublishSubscribeService};
+ use iceoryx2_link_adapter::{Destination, Region, ResizeError};
+ use iceoryx2_link_backend::service_description::{
+-    PublishSubscribeSettings, PublishSubscribeTypes, ServiceDescription, ServiceDescriptor,
+-    ServiceTypes, TypeDescription,
++    PatternSettings, PublishSubscribeSettings, PublishSubscribeTypes, ServiceDescription,
++    ServiceDescriptor, ServiceSettings, ServiceTypes, TypeDescription,
+ };
+ use iceoryx2_link_backend::{Backend, WakeHandle, WakeService};
+ 
+@@ -100,9 +100,16 @@ pub fn hash(name: &str) -> ServiceHash {
+ /// The descriptor of the publish-subscribe service `name` with `payload`
+ /// as its payload type.
+ pub fn descriptor(name: &str, payload: &str) -> ServiceDescriptor {
++    let name = ServiceName::new(name).expect("valid service name");
+     ServiceDescriptor {
+-        name: ServiceName::new(name).expect("valid service name"),
+-        hash: hash(name),
++        name,
++        hash: hash(name.as_str()),
++        settings: ServiceSettings::new(
++            name,
++            PatternSettings::PublishSubscribe(PublishSubscribeSettings::from_config(
++                &Config::default(),
++            )),
++        ),
+         types: types_of(payload),
+     }
+ }
+@@ -201,6 +208,27 @@ pub fn history_size_of<S: Service>(name: &ServiceName, config: &Config) -> Optio
+     }
+ }
+ 
++/// The publish-subscribe settings of the service `name` in the local
++/// system `config` configures, if it exists there.
++pub fn publish_subscribe_settings_of<S: Service>(
++    name: &ServiceName,
++    config: &Config,
++) -> Option<PublishSubscribeSettings> {
++    let details = S::details(name, config, MessagingPattern::PublishSubscribe).ok()??;
++    match details.static_details.messaging_pattern() {
++        Pattern::PublishSubscribe(settings) => Some(PublishSubscribeSettings {
++            max_subscribers: settings.max_subscribers(),
++            max_publishers: settings.max_publishers(),
++            max_nodes: settings.max_nodes(),
++            history_size: settings.history_size(),
++            subscriber_max_buffer_size: settings.subscriber_max_buffer_size(),
++            subscriber_max_borrowed_samples: settings.subscriber_max_borrowed_samples(),
++            safe_overflow: settings.has_safe_overflow(),
++        }),
++        _ => None,
++    }
++}
++
+ /// The payload type name of the publish-subscribe service `name` in the
+ /// local system `config` configures, if it exists there.
+ pub fn payload_type_of<S: Service>(name: &ServiceName, config: &Config) -> Option<String> {
+diff --git a/iceoryx2-link/conformance-tests/src/tunnel/publish_subscribe.rs b/iceoryx2-link/conformance-tests/src/tunnel/publish_subscribe.rs
+index 9351c4701..284c5e4f5 100644
+--- a/iceoryx2-link/conformance-tests/src/tunnel/publish_subscribe.rs
++++ b/iceoryx2-link/conformance-tests/src/tunnel/publish_subscribe.rs
+@@ -26,7 +26,8 @@ pub mod tunnel_publish_subscribe {
+     use crate::parameters::Foreign as Y;
+     use crate::parameters::{PayloadShape, PublishSubscribeService};
+     use crate::testing::{
+-        hash_of, history_size_of, payload_type_name, payload_type_of, retry, side,
++        hash_of, history_size_of, payload_type_name, payload_type_of,
++        publish_subscribe_settings_of, retry, side,
+     };
+ 
+     const TIMEOUT: Duration = Duration::from_secs(10);
+@@ -34,12 +35,17 @@ pub mod tunnel_publish_subscribe {
+     const SAMPLE_B: u64 = 2;
+ 
+     #[conformance_test]
+-    pub fn a_mirror_has_the_local_default_settings<
++    pub fn a_mirror_preserves_the_remote_settings<
+         S: Service,
+         X: PublishSubscribeService,
+         F: TunnelFixture,
+     >() {
+-        const HISTORY_SIZE: usize = 7;
++        const MAX_SUBSCRIBERS: usize = 11;
++        const MAX_PUBLISHERS: usize = 7;
++        const MAX_NODES: usize = 19;
++        const HISTORY_SIZE: usize = 9;
++        const SUBSCRIBER_MAX_BUFFER_SIZE: usize = 13;
++        const SUBSCRIBER_MAX_BORROWED_SAMPLES: usize = 3;
+ 
+         let mut fixture = F::new();
+ 
+@@ -48,26 +54,42 @@ pub mod tunnel_publish_subscribe {
+         let mut a = side::<S, _>(|config| fixture.tunnel(config));
+         let mut b = side::<S, _>(|config| fixture.tunnel(config));
+         let service_name = X::service_name();
++        let defaults = PublishSubscribeSettings::from_config(&a.config);
++        let offered = PublishSubscribeSettings {
++            max_subscribers: MAX_SUBSCRIBERS,
++            max_publishers: MAX_PUBLISHERS,
++            max_nodes: MAX_NODES,
++            history_size: HISTORY_SIZE,
++            subscriber_max_buffer_size: SUBSCRIBER_MAX_BUFFER_SIZE,
++            subscriber_max_borrowed_samples: SUBSCRIBER_MAX_BORROWED_SAMPLES,
++            safe_overflow: !defaults.safe_overflow,
++        };
+         let _service = X::create_service_with::<(), _>(&b.node, &service_name, |builder| {
+-            builder.history_size(HISTORY_SIZE)
++            builder
++                .max_subscribers(offered.max_subscribers)
++                .max_publishers(offered.max_publishers)
++                .max_nodes(offered.max_nodes)
++                .history_size(offered.history_size)
++                .subscriber_max_buffer_size(offered.subscriber_max_buffer_size)
++                .subscriber_max_borrowed_samples(offered.subscriber_max_borrowed_samples)
++                .enable_safe_overflow(offered.safe_overflow)
+         });
+-        let defaults = PublishSubscribeSettings::from_config(&a.config);
+ 
+         // === MIRROR ===
+-        // Side A mirrors it with side A's defaults, settings are local.
++        // Side A mirrors it with the settings Side B advertised.
+         retry(
+             || {
+                 b.link.discover().expect("discovery succeeds");
+                 a.link.discover().expect("discovery succeeds");
+-                match history_size_of::<S>(&service_name, &a.config) {
+-                    Some(size) if size == defaults.history_size => Ok(()),
+-                    Some(_) => Err("the mirror has other settings than the local defaults"),
++                match publish_subscribe_settings_of::<S>(&service_name, &a.config) {
++                    Some(settings) if settings == offered => Ok(()),
++                    Some(_) => Err("the mirror does not preserve the remote settings"),
+                     None => Err("the service is not mirrored"),
+                 }
+             },
+             TIMEOUT,
+         )
+-        .expect("the service is mirrored with the local defaults");
++        .expect("the service is mirrored with the remote settings");
+     }
+ 
+     #[conformance_test]
+@@ -214,22 +236,25 @@ pub mod tunnel_publish_subscribe {
+     }
+ 
+     #[conformance_test]
+-    pub fn samples_flow_between_services_with_differing_settings<
++    pub fn samples_do_not_cross_between_services_with_differing_settings<
+         S: Service,
+         X: PublishSubscribeService,
+         F: TunnelFixture,
+     >() {
+         const HISTORY_SIZE_A: usize = 1;
+         const HISTORY_SIZE_B: usize = 2;
+-        const SAMPLE: u64 = 5;
+-        let sample = X::Payload::value(SAMPLE);
++        const OBSERVATION_WINDOW: Duration = Duration::from_secs(1);
++        const OBSERVATION_INTERVAL: Duration = Duration::from_millis(10);
++        let sample_a = X::Payload::value(SAMPLE_A);
++        let sample_b = X::Payload::value(SAMPLE_B);
+ 
+         let mut fixture = F::new();
+ 
+         // === SETUP ===
+-        // Each side's application creates the service itself, with the same
+-        // types and its own history size. Neither side mirrors, each
+-        // exports its own.
++        // Each side's application creates its own native service with the
++        // same types and a distinct history size. The exact settings are part
++        // of the descriptor fingerprint, so these services use distinct
++        // channels; this contract does not negotiate compatible QoS.
+         let mut a = side::<S, _>(|config| fixture.tunnel(config));
+         let mut b = side::<S, _>(|config| fixture.tunnel(config));
+         let service_name = X::service_name();
+@@ -241,6 +266,8 @@ pub mod tunnel_publish_subscribe {
+         });
+         let hash = hash_of::<S>(&service_name);
+         let publisher_a = X::create_publisher(&service_a);
++        let subscriber_a = X::create_subscriber(&service_a);
++        let publisher_b = X::create_publisher(&service_b);
+         let subscriber_b = X::create_subscriber(&service_b);
+         retry(
+             || {
+@@ -256,22 +283,43 @@ pub mod tunnel_publish_subscribe {
+         .expect("both sides bridge their own service");
+         assert_that!(fixture.sync(&hash, TIMEOUT), eq true);
+ 
+-        // === A TO B ===
+-        // Settings are local, the types are what the channel is keyed by.
+-        X::send(&publisher_a, (), sample.clone());
+-        retry(
+-            || {
+-                a.link.propagate().expect("propagation succeeds");
+-                b.link.propagate().expect("propagation succeeds");
+-                match X::receive(&subscriber_b) {
+-                    Some((_, payload)) if payload == sample => Ok(()),
+-                    Some(_) => Err("an unexpected sample arrived on side B"),
+-                    None => Err("no sample arrived on side B"),
+-                }
+-            },
+-            TIMEOUT,
+-        )
+-        .expect("the sample reaches side B");
++        // The channel barrier must not replace or rewrite either native
++        // service's advertised history settings.
++        assert_that!(
++            history_size_of::<S>(&service_name, &a.config),
++            eq Some(HISTORY_SIZE_A)
++        );
++        assert_that!(
++            history_size_of::<S>(&service_name, &b.config),
++            eq Some(HISTORY_SIZE_B)
++        );
++
++        // === BOTH DIRECTIONS ===
++        X::send(&publisher_a, (), sample_a.clone());
++        X::send(&publisher_b, (), sample_b.clone());
++
++        // Keep propagating long enough for asynchronous carriers to deliver
++        // any cross-channel sample. Each subscriber also sees its own local
++        // publication, which is allowed and ignored here.
++        let mut sample_b_crossed_to_a = false;
++        let mut sample_a_crossed_to_b = false;
++        let observation_deadline = std::time::Instant::now() + OBSERVATION_WINDOW;
++        while std::time::Instant::now() < observation_deadline {
++            a.link.propagate().expect("propagation succeeds");
++            b.link.propagate().expect("propagation succeeds");
++
++            if let Some((_, payload)) = X::receive(&subscriber_a) {
++                sample_b_crossed_to_a |= payload == sample_b;
++            }
++            if let Some((_, payload)) = X::receive(&subscriber_b) {
++                sample_a_crossed_to_b |= payload == sample_a;
++            }
++
++            std::thread::sleep(OBSERVATION_INTERVAL);
++        }
++
++        assert_that!(sample_b_crossed_to_a, eq false);
++        assert_that!(sample_a_crossed_to_b, eq false);
+     }
+ 
+     #[conformance_test]
+diff --git a/iceoryx2-link/tunnel/src/resolver.rs b/iceoryx2-link/tunnel/src/resolver.rs
+index 460b7c780..cd7b92fd5 100644
+--- a/iceoryx2-link/tunnel/src/resolver.rs
++++ b/iceoryx2-link/tunnel/src/resolver.rs
+@@ -21,32 +21,26 @@ use crate::OfferId;
+ /// Why a service the peers offer is not bridged.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum Refusal {
+-    /// The peers offer the service under differing types.
++    /// The peers offer inconsistent or incompatible service descriptions.
+     Disputed,
+ }
+ 
+ impl core::fmt::Display for Refusal {
+     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+         match self {
+-            Refusal::Disputed => write!(f, "has differing types among its peers"),
++            Refusal::Disputed => write!(f, "has inconsistent types or settings among its peers"),
+         }
+     }
+ }
+ 
+ /// Resolves services against the peers' offers. A local service is
+ /// exported, a service the peers unanimously offer is imported with the
+-/// local defaults.
+-pub struct Resolver {
+-    /// The configuration of the local system, whose defaults mirrors are
+-    /// created with.
+-    config: Config,
+-}
++/// settings they advertise.
++pub struct Resolver;
+ 
+ impl Resolver {
+-    pub fn new(config: &Config) -> Self {
+-        Self {
+-            config: config.clone(),
+-        }
++    pub fn new(_config: &Config) -> Self {
++        Self
+     }
+ }
+ 
+@@ -56,7 +50,9 @@ impl<S: Service> resolver::Resolver<S> for Resolver {
+     type Refusal = Refusal;
+ 
+     fn service_hash(&self, remote: &ServiceDescriptor) -> Result<Option<ServiceHash>, Refusal> {
+-        Ok(Some(remote.hash))
++        ServiceDescription::from_descriptor::<S>(remote)
++            .map(|_| Some(remote.hash))
++            .map_err(|_| Refusal::Disputed)
+     }
+ 
+     fn resolve<'a>(
+@@ -81,14 +77,17 @@ impl<S: Service> resolver::Resolver<S> for Resolver {
+         let Some(first) = remotes.next() else {
+             return Resolution::OutOfScope;
+         };
+-        if remotes.any(|offered| offered.types != first.types) {
++        let Ok(mirror) = ServiceDescription::from_descriptor::<S>(first) else {
++            return Resolution::Refused(Refusal::Disputed);
++        };
++        if remotes.any(|offered| {
++            offered.name != first.name
++                || offered.types != first.types
++                || offered.settings != first.settings
++                || ServiceDescription::from_descriptor::<S>(offered).is_err()
++        }) {
+             return Resolution::Refused(Refusal::Disputed);
+         }
+-        let mirror = ServiceDescription::with_default_settings::<S>(
+-            first.name,
+-            first.types.clone(),
+-            &self.config,
+-        );
+         Resolution::Imported(mirror, first.clone())
+     }
+ }
+@@ -97,8 +96,15 @@ impl<S: Service> resolver::Resolver<S> for Resolver {
+ mod tests {
+     use super::*;
+ 
++    use core::time::Duration;
++
++    use iceoryx2::port::event_id::EventId;
+     use iceoryx2::service::local;
++    use iceoryx2::service::service_name::ServiceName;
+     use iceoryx2_bb_testing::assert_that;
++    use iceoryx2_link_backend::service_description::{
++        EventSettings, PatternSettings, PublishSubscribeSettings, ServiceSettings,
++    };
+ 
+     use crate::testing::{description, descriptor};
+ 
+@@ -174,6 +180,56 @@ mod tests {
+         assert_that!(resolution, eq Resolution::Imported(mirror, descriptor(SERVICE, PAYLOAD)));
+     }
+ 
++    #[test]
++    fn a_sensor_service_is_imported_with_its_remote_settings() {
++        const SERVICE: &str = "resolver/Sensor";
++
++        let sut = Resolver::new(&Config::default());
++        let mut offered = descriptor(SERVICE, PAYLOAD);
++        let settings = PublishSubscribeSettings {
++            max_subscribers: 11,
++            max_publishers: 7,
++            max_nodes: 19,
++            history_size: 9,
++            subscriber_max_buffer_size: 13,
++            subscriber_max_borrowed_samples: 3,
++            safe_overflow: true,
++        };
++        offered.settings =
++            ServiceSettings::new(offered.name, PatternSettings::PublishSubscribe(settings));
++        let expected = ServiceDescription::from_descriptor::<local::Service>(&offered)
++            .expect("the descriptor is consistent");
++
++        let resolution = resolve(&sut, None, core::slice::from_ref(&offered));
++
++        assert_that!(resolution, eq Resolution::Imported(expected, offered));
++    }
++
++    #[test]
++    fn a_control_service_is_imported_with_its_remote_settings() {
++        const SERVICE: &str = "resolver/Control";
++
++        let sut = Resolver::new(&Config::default());
++        let expected = ServiceDescription::compose_event::<local::Service>(
++            ServiceName::new(SERVICE).expect("valid service name"),
++            EventSettings {
++                max_notifiers: 5,
++                max_listeners: 6,
++                max_nodes: 17,
++                event_id_max_value: 42,
++                deadline: Some(Duration::from_millis(250)),
++                notifier_created_event: Some(EventId::new(40)),
++                notifier_dropped_event: Some(EventId::new(41)),
++                notifier_dead_event: None,
++            },
++        );
++        let offered = ServiceDescriptor::from(&expected);
++
++        let resolution = resolve(&sut, None, core::slice::from_ref(&offered));
++
++        assert_that!(resolution, eq Resolution::Imported(expected, offered));
++    }
++
+     #[test]
+     fn a_service_the_peers_disagree_on_is_disputed() {
+         const SERVICE: &str = "resolver/import/disputed";
+@@ -188,6 +244,23 @@ mod tests {
+         assert_that!(resolution, eq Resolution::Refused(Refusal::Disputed));
+     }
+ 
++    #[test]
++    fn a_service_the_peers_offer_with_differing_settings_is_disputed() {
++        const SERVICE: &str = "resolver/import/settings-disputed";
++
++        let sut = Resolver::new(&Config::default());
++        let first = descriptor(SERVICE, PAYLOAD);
++        let mut second = first.clone();
++        let PatternSettings::PublishSubscribe(settings) = &mut second.settings.pattern else {
++            panic!("a publish-subscribe descriptor");
++        };
++        settings.history_size += 1;
++
++        let resolution = resolve(&sut, None, &[first, second]);
++
++        assert_that!(resolution, eq Resolution::Refused(Refusal::Disputed));
++    }
++
+     #[test]
+     fn a_service_with_neither_side_is_out_of_scope() {
+         let sut = Resolver::new(&Config::default());
+diff --git a/integrations/zenoh/link-carrier/src/keys.rs b/integrations/zenoh/link-carrier/src/keys.rs
+index 6fb0f3f7d..74d165f4a 100644
+--- a/integrations/zenoh/link-carrier/src/keys.rs
++++ b/integrations/zenoh/link-carrier/src/keys.rs
+@@ -17,7 +17,7 @@ use zenoh::key_expr::{OwnedKeyExpr, keyexpr};
+ use crate::fingerprint::Fingerprint;
+ 
+ /// Namespace of all keys.
+-pub const NAMESPACE: &str = "iox2";
++pub const NAMESPACE: &str = "iox2-rbt";
+ 
+ /// Version of the key scheme.
+ pub const VERSION: &str = "v1";
+@@ -39,10 +39,16 @@ pub fn offer(hash: &ServiceHash, fingerprint: &Fingerprint, peer: &PeerId) -> Ow
+ 
+ /// Recovers hash, fingerprint and peer from a key built by [`offer`].
+ pub fn parse_offer(key: &keyexpr) -> Option<(ServiceHash, Fingerprint, PeerId)> {
+-    let mut segments = key.as_str().rsplit('/');
+-    let peer = parse_peer(segments.next()?)?;
+-    let fingerprint = Fingerprint::try_from(segments.next()?).ok()?;
++    let mut segments = key.as_str().split('/');
++    if segments.next()? != NAMESPACE || segments.next()? != VERSION || segments.next()? != "offer" {
++        return None;
++    }
+     let hash = ServiceHash::try_from(segments.next()?).ok()?;
++    let fingerprint = Fingerprint::try_from(segments.next()?).ok()?;
++    let peer = parse_peer(segments.next()?)?;
++    if segments.next().is_some() {
++        return None;
++    }
+     Some((hash, fingerprint, peer))
+ }
+ 
+@@ -75,10 +81,15 @@ fn parse_peer(text: &str) -> Option<PeerId> {
+ mod tests {
+     use super::*;
+ 
++    use core::time::Duration;
++    use iceoryx2::port::event_id::EventId;
+     use iceoryx2::service::messaging_pattern::MessagingPattern;
+     use iceoryx2::service::service_name::ServiceName;
+     use iceoryx2::service::{Service, local};
+     use iceoryx2_bb_testing::assert_that;
++    use iceoryx2_link_backend::service_description::{
++        EventSettings, ServiceDescription, ServiceDescriptor,
++    };
+ 
+     const PEER: u8 = 7;
+ 
+@@ -103,4 +114,54 @@ mod tests {
+ 
+         assert_that!(parse_offer(key), is_none);
+     }
++
++    #[test]
++    fn an_offer_requires_the_exact_namespace_and_segment_count() {
++        const SERVICE: &str = "keys/exact-prefix";
++
++        let hash = ServiceHash::new::<<local::Service as Service>::ServiceNameHasher>(
++            &ServiceName::new(SERVICE).expect("valid service name"),
++            MessagingPattern::PublishSubscribe,
++        );
++        let fingerprint = Fingerprint::digest(b"keys/exact-prefix");
++        let peer = PeerId::new([PEER; PeerId::LENGTH]);
++        let valid = offer(&hash, &fingerprint, &peer);
++        let suffix = valid
++            .as_str()
++            .splitn(3, '/')
++            .nth(2)
++            .expect("offer has a suffix after its namespace and version");
++        let upstream_namespace_text = format!("iox2/v1/{suffix}");
++        let upstream_namespace =
++            keyexpr::new(&upstream_namespace_text).expect("a valid key expression");
++        let extra_segment_text = format!("{valid}/extra");
++        let extra_segment = keyexpr::new(&extra_segment_text).expect("a valid key expression");
++
++        assert_that!(parse_offer(upstream_namespace), is_none);
++        assert_that!(parse_offer(extra_segment), is_none);
++    }
++
++    #[test]
++    fn an_event_descriptor_round_trips_through_carrier_serialization() {
++        let description = ServiceDescription::compose_event::<local::Service>(
++            ServiceName::new("keys/descriptor-round-trip").expect("valid service name"),
++            EventSettings {
++                max_notifiers: 3,
++                max_listeners: 4,
++                max_nodes: 5,
++                event_id_max_value: 99,
++                deadline: Some(Duration::from_millis(125)),
++                notifier_created_event: Some(EventId::new(10)),
++                notifier_dropped_event: None,
++                notifier_dead_event: Some(EventId::new(12)),
++            },
++        );
++        let descriptor = ServiceDescriptor::from(&description);
++
++        let encoded = postcard::to_allocvec(&descriptor).expect("descriptor serializes");
++        let decoded: ServiceDescriptor =
++            postcard::from_bytes(&encoded).expect("descriptor deserializes");
++
++        assert_that!(decoded, eq descriptor);
++    }
+ }

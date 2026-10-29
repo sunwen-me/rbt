@@ -1,0 +1,11 @@
+[package]
+name = "rbt-rpc-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rbt-bench = { path = "../rbt-bench" }
+rbt-iox2 = { path = "../rbt-iox2" }

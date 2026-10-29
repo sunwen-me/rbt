@@ -1,0 +1,10 @@
+--- a/src/super_lio/src/rbt_adapter/component.cpp
++++ b/src/super_lio/src/rbt_adapter/component.cpp
+@@ -365,7 +365,6 @@
+         if (g_ground_robot_planar_constraint) {
+             const auto yaw = std::atan2(R_base(1, 0), R_base(0, 0));
+             R_base = Eigen::AngleAxis<BASIC::scalar>(yaw, BASIC::V3::UnitZ()).toRotationMatrix();
+-            position.z() = g_ground_robot_base_z;
+         }
+         const BASIC::V3 linear = R_base.transpose() * world_base_velocity;
+         const BASIC::V3 omega = R_base.transpose() * world_angular_velocity;

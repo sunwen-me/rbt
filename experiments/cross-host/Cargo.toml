@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["."]
+
+[package]
+name = "cross-host-probe"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+iceoryx2 = "=0.9.3"
+rbt-iox2 = { path = "../../crates/rbt-iox2" }

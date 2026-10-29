@@ -1,0 +1,22 @@
+{
+  "schema": "rbt.tf-semantics-v1",
+  "tolerance": {
+    "absolute": 1e-12,
+    "relative": 1e-12
+  },
+  "expected": {
+    "direction_point": [1.0, 0.0, 1.0],
+    "inverse_point": [0.0, 0.0, 1.0],
+    "chain_point": [11.707106781186548, 0.7071067811865476, 0.0],
+    "interpolated_translation": [1.0, 0.0, 0.0],
+    "interpolated_quaternion_xyzw": [
+      0.0,
+      0.0,
+      0.3826834323650898,
+      0.9238795325112867
+    ],
+    "wrong_clock_error": "clock_mapping_unavailable",
+    "expired_mapping_error": "clock_mapping_expired",
+    "mapped_point": [1.7071067811865475, 0.7071067811865476, 0.0]
+  }
+}

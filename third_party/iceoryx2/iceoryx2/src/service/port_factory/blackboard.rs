@@ -1,0 +1,257 @@
+// Copyright (c) 2025 Contributors to the Eclipse Foundation
+//
+// See the NOTICE file(s) distributed with this work for additional
+// information regarding copyright ownership.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache Software License 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license
+// which is available at https://opensource.org/licenses/MIT.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! # Example
+//!
+//! ```
+//! use iceoryx2::prelude::*;
+//!
+//! # fn main() -> Result<(), Box<dyn core::error::Error>> {
+//! let node = NodeBuilder::new().create::<ipc::Service>()?;
+//! type KeyType = u64;
+//! let blackboard = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+//!     .blackboard_creator::<KeyType>()
+//!     .add::<i32>(0,0)
+//!     .create()?;
+//!
+//! println!("name:                             {:?}", blackboard.name());
+//! println!("service id:                       {:?}", blackboard.service_hash());
+//! println!("type details:                     {:?}", blackboard.static_config().type_details());
+//! println!("max nodes:                        {:?}", blackboard.static_config().max_nodes());
+//! println!("max readers:                      {:?}", blackboard.static_config().max_readers());
+//! println!("number of active readers:         {:?}", blackboard.dynamic_config().number_of_readers());
+//!
+//! let writer = blackboard.writer_builder().create()?;
+//! let reader = blackboard.reader_builder().create()?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+extern crate alloc;
+use alloc::sync::Arc;
+
+use super::nodes;
+use super::reader::PortFactoryReader;
+use super::writer::PortFactoryWriter;
+use crate::constants::MAX_BLACKBOARD_KEY_SIZE;
+use crate::identifiers::UniqueServiceId;
+use crate::node::NodeListFailure;
+use crate::service::attribute::AttributeSet;
+use crate::service::builder::CustomKeyMarker;
+use crate::service::builder::blackboard::{BlackboardResources, KeyMemory};
+use crate::service::port_factory::blocking_cleanup_dead_nodes_in_service;
+use crate::service::service_hash::ServiceHash;
+use crate::service::service_name::ServiceName;
+use crate::service::{self, ServiceState, SharedServiceState, dynamic_config, static_config};
+use core::fmt::Debug;
+use core::hash::Hash;
+use core::marker::PhantomData;
+use core::ptr::NonNull;
+use iceoryx2_bb_elementary::CallbackProgression;
+use iceoryx2_bb_elementary_traits::non_null::NonNullCompat;
+use iceoryx2_bb_elementary_traits::testing::abandonable::Abandonable;
+use iceoryx2_bb_elementary_traits::zero_copy_send::ZeroCopySend;
+use iceoryx2_cal::dynamic_storage::DynamicStorage;
+
+/// The factory for
+/// [`MessagingPattern::Blackboard`](crate::service::messaging_pattern::MessagingPattern::Blackboard).
+/// It can acquire dynamic and static service informations and create
+/// [`crate::port::reader::Reader`] or [`crate::port::writer::Writer`] ports.
+#[derive(Debug)]
+pub struct PortFactory<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> {
+    pub(crate) service: SharedServiceState<Service, BlackboardResources<Service>>,
+    _key: PhantomData<KeyType>,
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> Abandonable for PortFactory<Service, KeyType>
+{
+    unsafe fn abandon_in_place(mut this: NonNull<Self>) {
+        let this = unsafe { this.as_mut() };
+        unsafe { SharedServiceState::abandon_in_place(NonNull::iox2_from_mut(&mut this.service)) };
+    }
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> crate::service::port_factory::PortFactory for PortFactory<Service, KeyType>
+{
+    type Service = Service;
+    type StaticConfig = static_config::blackboard::StaticConfig;
+    type DynamicConfig = dynamic_config::blackboard::DynamicConfig;
+
+    fn name(&self) -> &ServiceName {
+        self.service.static_config().name()
+    }
+
+    fn unique_service_id(&self) -> UniqueServiceId {
+        self.service.static_config().unique_service_id()
+    }
+
+    fn service_hash(&self) -> &ServiceHash {
+        self.service.static_config().service_hash()
+    }
+
+    fn attributes(&self) -> &AttributeSet {
+        self.service.static_config().attributes()
+    }
+
+    fn static_config(&self) -> &static_config::blackboard::StaticConfig {
+        self.service.static_config().blackboard()
+    }
+
+    fn dynamic_config(&self) -> &dynamic_config::blackboard::DynamicConfig {
+        self.service.dynamic_storage().get().blackboard()
+    }
+
+    fn nodes<F: FnMut(crate::node::NodeState<Service>) -> CallbackProgression>(
+        &self,
+        callback: F,
+    ) -> Result<(), NodeListFailure> {
+        nodes(
+            self.service.dynamic_storage().get(),
+            self.service.shared_node().config(),
+            callback,
+        )
+    }
+}
+
+impl<
+    Service: service::Service,
+    KeyType: Send + Sync + Eq + Clone + Copy + Debug + 'static + Hash + ZeroCopySend,
+> PortFactory<Service, KeyType>
+{
+    pub(crate) fn new(service: ServiceState<Service, BlackboardResources<Service>>) -> Self {
+        let shared_node = service.shared_node.clone();
+        let new_self = Self {
+            service: SharedServiceState {
+                state: Arc::new(service),
+            },
+            _key: PhantomData,
+        };
+
+        if shared_node
+            .config()
+            .global
+            .service
+            .cleanup_dead_nodes_on_open
+        {
+            blocking_cleanup_dead_nodes_in_service(
+                &new_self,
+                shared_node.config().global.creation_timeout,
+            );
+        }
+
+        new_self
+    }
+
+    /// Returns a [`PortFactoryWriter`] to create a new [`crate::port::writer::Writer`] port.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use iceoryx2::prelude::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// type KeyType = u64;
+    /// let blackboard = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    ///     .blackboard_creator::<KeyType>()
+    ///     .add::<i32>(0,0)
+    ///     .create()?;
+    ///
+    /// let writer = blackboard.writer_builder().create()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn writer_builder(&self) -> PortFactoryWriter<'_, Service, KeyType> {
+        PortFactoryWriter::new(self)
+    }
+
+    /// Returns a [`PortFactoryReader`] to create a new [`crate::port::reader::Reader`] port.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use iceoryx2::prelude::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// type KeyType = u64;
+    /// let blackboard = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    ///     .blackboard_creator::<KeyType>()
+    ///     .add::<i32>(0,0)
+    ///     .create()?;
+    ///
+    /// let reader = blackboard.reader_builder().create()?;
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn reader_builder(&self) -> PortFactoryReader<'_, Service, KeyType> {
+        PortFactoryReader::new(self)
+    }
+
+    /// Iterates over all keys of the blackboard and calls the provided callback.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use iceoryx2::prelude::*;
+    ///
+    /// # fn main() -> Result<(), Box<dyn core::error::Error>> {
+    /// let node = NodeBuilder::new().create::<ipc::Service>()?;
+    /// type KeyType = u64;
+    /// let blackboard = node.service_builder(&"My/Funk/ServiceName".try_into()?)
+    ///     .blackboard_creator::<KeyType>()
+    ///     .add::<i32>(0, 0)
+    ///     .add::<i32>(1, 0)
+    ///     .create()?;
+    ///
+    /// blackboard.list_keys(|&key| {
+    ///     println!("Key = {key}");
+    ///     CallbackProgression::Continue
+    /// });
+    ///
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn list_keys<F: FnMut(&KeyType) -> CallbackProgression>(&self, mut callback: F) {
+        self.service.additional_resource().mgmt.get().map.list_keys(
+            |key: &KeyMemory<MAX_BLACKBOARD_KEY_SIZE>| {
+                callback(unsafe { &*(key.data.as_ptr() as *const KeyType) })
+            },
+        );
+    }
+}
+
+impl<Service: service::Service> PortFactory<Service, CustomKeyMarker> {
+    #[doc(hidden)]
+    pub fn __internal_list_keys<F: FnMut(*const u8) -> CallbackProgression>(
+        &self,
+        mut callback: F,
+    ) {
+        self.service
+            .additional_resource()
+            .mgmt
+            .get()
+            .map
+            .list_keys(|key: &KeyMemory<MAX_BLACKBOARD_KEY_SIZE>| callback(key.data.as_ptr()));
+    }
+}

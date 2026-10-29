@@ -1,0 +1,295 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.tf",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.tf",
+      "namespace": "rbt.tf",
+      "name": "DynamicTransform",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "DynamicTransform",
+      "header_size": 288,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "b1a02959970fa0ecd30b6219ab2bcb56",
+      "signature": "authority:[u8;16]@0;parent:TfFrameId(bytes:[u8;64]@0)@16;child:TfFrameId(bytes:[u8;64]@0)@80;stamp:TfTimestamp(kind:u8@0,flags:u8@1,reserved:[u8;6]@2,source_id:[u8;48]@8,generation:u64@56,nanoseconds:i64@64,uncertainty_ns:u64@72)@144;transform:TfTransform3(translation:TfVec3(x:f64@0,y:f64@8,z:f64@16)@0,rotation:TfQuaternion(x:f64@0,y:f64@8,z:f64@16,w:f64@24)@24)@224;transform_epoch:u64@280;padding:none",
+      "header_fields": [
+        {
+          "name": "authority",
+          "ty": "u8[16]",
+          "offset": 0,
+          "size": 16,
+          "align": 1,
+          "array_length": 16
+        },
+        {
+          "name": "parent",
+          "ty": "TfFrameId",
+          "offset": 16,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "child",
+          "ty": "TfFrameId",
+          "offset": 80,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "stamp",
+          "ty": "TfTimestamp",
+          "offset": 144,
+          "size": 80,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "transform",
+          "ty": "TfTransform3",
+          "offset": 224,
+          "size": 56,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "transform_epoch",
+          "ty": "u64",
+          "offset": 280,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.tf",
+      "namespace": "rbt.tf",
+      "name": "StaticSnapshotRequest",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "StaticSnapshotRequest",
+      "header_size": 24,
+      "header_align": 4,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "85b655e27004d7d38eb10d720e035d7b",
+      "signature": "authority:[u8;16]@0;max_transforms:u32@16;reserved:[u8;4]@20;padding:none",
+      "header_fields": [
+        {
+          "name": "authority",
+          "ty": "u8[16]",
+          "offset": 0,
+          "size": 16,
+          "align": 1,
+          "array_length": 16
+        },
+        {
+          "name": "max_transforms",
+          "ty": "u32",
+          "offset": 16,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u8[4]",
+          "offset": 20,
+          "size": 4,
+          "align": 1,
+          "array_length": 4
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.tf",
+      "namespace": "rbt.tf",
+      "name": "StaticSnapshot",
+      "abi_major": 1,
+      "shape": "slice",
+      "header_type": "StaticHeader",
+      "header_size": 112,
+      "header_align": 8,
+      "element_type": "StaticTransform",
+      "element_size": 184,
+      "element_align": 8,
+      "layout_hash": "cd373f3a4bdf5d680aec5d208da98e82",
+      "signature": "header(authority:[u8;16]@0,revision:u64@16,status:u32@24,count:u32@28,effective_from:TfTimestamp(kind:u8@0,flags:u8@1,reserved:[u8;6]@2,source_id:[u8;48]@8,generation:u64@56,nanoseconds:i64@64,uncertainty_ns:u64@72)@32,padding:none);element:StaticTransform(parent:TfFrameId(bytes:[u8;64]@0)@0,child:TfFrameId(bytes:[u8;64]@0)@64,transform:TfTransform3(translation:TfVec3(x:f64@0,y:f64@8,z:f64@16)@0,rotation:TfQuaternion(x:f64@0,y:f64@8,z:f64@16,w:f64@24)@24)@128)",
+      "header_fields": [
+        {
+          "name": "authority",
+          "ty": "u8[16]",
+          "offset": 0,
+          "size": 16,
+          "align": 1,
+          "array_length": 16
+        },
+        {
+          "name": "revision",
+          "ty": "u64",
+          "offset": 16,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "status",
+          "ty": "u32",
+          "offset": 24,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "count",
+          "ty": "u32",
+          "offset": 28,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "effective_from",
+          "ty": "TfTimestamp",
+          "offset": 32,
+          "size": 80,
+          "align": 8,
+          "array_length": null
+        }
+      ],
+      "element_fields": [
+        {
+          "name": "parent",
+          "ty": "TfFrameId",
+          "offset": 0,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "child",
+          "ty": "TfFrameId",
+          "offset": 64,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "transform",
+          "ty": "TfTransform3",
+          "offset": 128,
+          "size": 56,
+          "align": 8,
+          "array_length": null
+        }
+      ]
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.tf",
+      "namespace": "rbt.tf",
+      "name": "StaticUpdate",
+      "abi_major": 1,
+      "shape": "slice",
+      "header_type": "StaticUpdateHeader",
+      "header_size": 112,
+      "header_align": 8,
+      "element_type": "StaticTransform",
+      "element_size": 184,
+      "element_align": 8,
+      "layout_hash": "8e4aaeb6d5c1bd7c040a9ff2384432b8",
+      "signature": "header(authority:[u8;16]@0,revision:u64@16,status:u32@24,count:u32@28,effective_from:TfTimestamp(kind:u8@0,flags:u8@1,reserved:[u8;6]@2,source_id:[u8;48]@8,generation:u64@56,nanoseconds:i64@64,uncertainty_ns:u64@72)@32,padding:none);element:StaticTransform(parent:TfFrameId(bytes:[u8;64]@0)@0,child:TfFrameId(bytes:[u8;64]@0)@64,transform:TfTransform3(translation:TfVec3(x:f64@0,y:f64@8,z:f64@16)@0,rotation:TfQuaternion(x:f64@0,y:f64@8,z:f64@16,w:f64@24)@24)@128)",
+      "header_fields": [
+        {
+          "name": "authority",
+          "ty": "u8[16]",
+          "offset": 0,
+          "size": 16,
+          "align": 1,
+          "array_length": 16
+        },
+        {
+          "name": "revision",
+          "ty": "u64",
+          "offset": 16,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "status",
+          "ty": "u32",
+          "offset": 24,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "count",
+          "ty": "u32",
+          "offset": 28,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "effective_from",
+          "ty": "TfTimestamp",
+          "offset": 32,
+          "size": 80,
+          "align": 8,
+          "array_length": null
+        }
+      ],
+      "element_fields": [
+        {
+          "name": "parent",
+          "ty": "TfFrameId",
+          "offset": 0,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "child",
+          "ty": "TfFrameId",
+          "offset": 64,
+          "size": 64,
+          "align": 1,
+          "array_length": null
+        },
+        {
+          "name": "transform",
+          "ty": "TfTransform3",
+          "offset": 128,
+          "size": 56,
+          "align": 8,
+          "array_length": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "rbt"
+version = "0.8.0"
+description = "rbt Component runtime and zero-copy NumPy shared-memory data SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+dependencies = ["numpy>=1.23"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX :: Linux",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "pytest-timeout>=2,<3"]
+
+[tool.maturin]
+manifest-path = "../crates/rbt-python/Cargo.toml"
+module-name = "rbt._rbt"
+python-source = "."
+bindings = "pyo3"
+strip = true
+exclude = ["**/__pycache__/**", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 30
+markers = ["full: slower full-gate coverage"]

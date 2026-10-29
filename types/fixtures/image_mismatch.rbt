@@ -1,0 +1,24 @@
+// Deliberately incompatible Image ABI used by the C++ preflight verifier.
+package rbt.sensor;
+abi 1;
+
+newtype PixelFormat: u32 {
+    RGB8 = 1;
+    BGR8 = 2;
+    GRAY8 = 3;
+}
+
+struct ImageHeader {
+    sequence: u64;
+    timestamp_ns: u64;
+    width: u32;
+    height: u32;
+    stride: u32;
+    encoding: PixelFormat;
+    exposure_us: u32;
+}
+
+message Image = slice {
+    header ImageHeader;
+    payload u8[];
+}

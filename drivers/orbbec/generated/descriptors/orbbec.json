@@ -1,0 +1,285 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.orbbec",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.orbbec",
+      "namespace": "rbt.orbbec",
+      "name": "CameraInfoRequest",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "CameraInfoRequest",
+      "header_size": 8,
+      "header_align": 4,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "cd9b4a0e94a3a667bc0d44d6bd527c22",
+      "signature": "stream:u32@0;reserved:u32@4;padding:none",
+      "header_fields": [
+        {
+          "name": "stream",
+          "ty": "u32",
+          "offset": 0,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u32",
+          "offset": 4,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.orbbec",
+      "namespace": "rbt.orbbec",
+      "name": "CameraInfoResponse",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "CameraInfoResponse",
+      "header_size": 256,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "c583e6ea2991e55d792719a5beb6cbfe",
+      "signature": "status:u32@0;stream:u32@4;width:u32@8;height:u32@12;fps:u32@16;format:u32@20;fx:f64@24;fy:f64@32;cx:f64@40;cy:f64@48;distortion_model:u32@56;reserved:u32@60;distortion:[f64;8]@64;frame_id:[u8;64]@128;serial:[u8;64]@192;padding:none",
+      "header_fields": [
+        {
+          "name": "status",
+          "ty": "u32",
+          "offset": 0,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "stream",
+          "ty": "u32",
+          "offset": 4,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "width",
+          "ty": "u32",
+          "offset": 8,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "height",
+          "ty": "u32",
+          "offset": 12,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "fps",
+          "ty": "u32",
+          "offset": 16,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "format",
+          "ty": "u32",
+          "offset": 20,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "fx",
+          "ty": "f64",
+          "offset": 24,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "fy",
+          "ty": "f64",
+          "offset": 32,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "cx",
+          "ty": "f64",
+          "offset": 40,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "cy",
+          "ty": "f64",
+          "offset": 48,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "distortion_model",
+          "ty": "u32",
+          "offset": 56,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u32",
+          "offset": 60,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "distortion",
+          "ty": "f64[8]",
+          "offset": 64,
+          "size": 64,
+          "align": 8,
+          "array_length": 8
+        },
+        {
+          "name": "frame_id",
+          "ty": "u8[64]",
+          "offset": 128,
+          "size": 64,
+          "align": 1,
+          "array_length": 64
+        },
+        {
+          "name": "serial",
+          "ty": "u8[64]",
+          "offset": 192,
+          "size": 64,
+          "align": 1,
+          "array_length": 64
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.orbbec",
+      "namespace": "rbt.orbbec",
+      "name": "ControlRequest",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "ControlRequest",
+      "header_size": 16,
+      "header_align": 4,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "614f0372be15f1d43b7250e57b0cb8db",
+      "signature": "operation:u32@0;property:u32@4;value:i32@8;reserved:u32@12;padding:none",
+      "header_fields": [
+        {
+          "name": "operation",
+          "ty": "u32",
+          "offset": 0,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "property",
+          "ty": "u32",
+          "offset": 4,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "value",
+          "ty": "i32",
+          "offset": 8,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "reserved",
+          "ty": "u32",
+          "offset": 12,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.orbbec",
+      "namespace": "rbt.orbbec",
+      "name": "ControlResponse",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "ControlResponse",
+      "header_size": 136,
+      "header_align": 4,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "da7be31dca724a03fc5eb0cfbbe2fd7e",
+      "signature": "status:u32@0;value:i32@4;message:[u8;128]@8;padding:none",
+      "header_fields": [
+        {
+          "name": "status",
+          "ty": "u32",
+          "offset": 0,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "value",
+          "ty": "i32",
+          "offset": 4,
+          "size": 4,
+          "align": 4,
+          "array_length": null
+        },
+        {
+          "name": "message",
+          "ty": "u8[128]",
+          "offset": 8,
+          "size": 128,
+          "align": 1,
+          "array_length": 128
+        }
+      ],
+      "element_fields": []
+    }
+  ]
+}

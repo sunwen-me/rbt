@@ -1,0 +1,492 @@
+--- a/src/super_lio/CMakeLists.txt
++++ b/src/super_lio/CMakeLists.txt
+@@ -31,6 +31,15 @@
+ find_package(OpenMP QUIET)
+ option(LIO_WITH_FAST_GICP "Build vendored VGICP for prior-map localization" ON)
+ option(LIO_WITH_KISS_MATCHER "Build vendored KISS matcher (may fetch its dependencies)" OFF)
++option(LIO_WITH_RBT_NAVIGATION "Publish normalized RBT navigation frames" OFF)
++set(RBT_NAVIGATION_SOURCE_DIR "" CACHE PATH "Path to the RBT navigation source tree")
++if(LIO_WITH_RBT_NAVIGATION)
++  if(NOT RBT_NAVIGATION_SOURCE_DIR OR
++      NOT EXISTS "${RBT_NAVIGATION_SOURCE_DIR}/include/rbt_navigation/runtime/lio_output.hpp" OR
++      NOT EXISTS "${RBT_NAVIGATION_SOURCE_DIR}/generated/cpp/rbt/navwire.hpp")
++    message(FATAL_ERROR "LIO_WITH_RBT_NAVIGATION requires RBT_NAVIGATION_SOURCE_DIR pointing to the navigation source tree")
++  endif()
++endif()
+ if(LIO_WITH_KISS_MATCHER)
+   set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+   set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+@@ -65,6 +74,12 @@
+ target_compile_features(lio_core PUBLIC cxx_std_20)
+ target_compile_definitions(lio_core PRIVATE ROOT="${CMAKE_CURRENT_SOURCE_DIR}/")
+ target_include_directories(lio_core PUBLIC include ${PCL_INCLUDE_DIRS} "${MID_WORKSPACE_DIR}/generated/cpp")
++if(LIO_WITH_RBT_NAVIGATION)
++  target_include_directories(lio_core BEFORE PUBLIC
++    "${RBT_NAVIGATION_SOURCE_DIR}/generated/cpp"
++    "${RBT_NAVIGATION_SOURCE_DIR}/include")
++  target_compile_definitions(lio_core PUBLIC LIO_WITH_RBT_NAVIGATION=1)
++endif()
+ target_link_libraries(lio_core PUBLIC Eigen3::Eigen ${PCL_LIBRARIES} glog::glog ${MID_GFLAGS_TARGET} Threads::Threads
+   mid360_driver::messages gtsam TBB::tbb ${MID_YAML_CPP_TARGET})
+ if(LIO_WITH_FAST_GICP)
+--- a/src/super_lio/include/lio/prior_map_localization.h
++++ b/src/super_lio/include/lio/prior_map_localization.h
+@@ -33,6 +33,7 @@
+             PriorMapCallback prior_map_callback = {});
+   void shutdown();
+   bool enabled() const { return enabled_; }
++  bool navigationReady() const noexcept;
+ 
+   void submit(double timestamp,
+               const BASIC::CloudPtr& registered_cloud,
+@@ -140,6 +141,8 @@
+   double lost_kiss_retry_cooldown_sec_ = 5.0;
+   int lost_kiss_retry_max_backoff_ = 6;
+   int max_delta_gate_rejections_ = 10;
++  std::atomic<bool> navigation_tracking_{false};
++  std::atomic<std::int64_t> navigation_last_accepted_steady_ns_{0};
+ };
+ 
+ }  // namespace LI2Sup
+--- a/src/super_lio/include/rbt_adapter/LIOWrapper.h
++++ b/src/super_lio/include/rbt_adapter/LIOWrapper.h
+@@ -42,6 +42,13 @@
+     void pub_backend_optimized_path(const Path& trajectory);
+     void set_map_to_odom(const BASIC::SE3& transform);
+     bool get_map_to_odom(BASIC::SE3& transform) const;
++    std::optional<std::uint8_t> time_type() const;
++    void set_navigation_localized(bool localized) noexcept {
++        navigation_localized_.store(localized, std::memory_order_release);
++    }
++    bool navigation_localized() const noexcept {
++        return navigation_localized_.load(std::memory_order_acquire);
++    }
+ private:
+     void check_clock(std::uint8_t time_type);
+     InputOptions options_;
+@@ -55,6 +62,7 @@
+     std::uint64_t last_cloud_sequence_ = 0, last_imu_sequence_ = 0;
+     double last_imu_time_ = -1, last_cloud_time_ = -1;
+     ESKF::Ptr eskf_;
++    std::atomic<bool> navigation_localized_{false};
+     BASIC::SE3 map_to_odom_;
+     bool has_map_to_odom_ = false;
+ };
+--- a/src/super_lio/src/lio/prior_map_localization.cpp
++++ b/src/super_lio/src/lio/prior_map_localization.cpp
+@@ -1,6 +1,7 @@
+ #include "lio/prior_map_localization.h"
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <cmath>
+ #include <cstdint>
+ #include <filesystem>
+@@ -114,6 +115,7 @@
+ 
+ void PriorMapLocalization::shutdown()
+ {
++  navigation_tracking_.store(false, std::memory_order_release);
+   {
+     std::lock_guard<std::mutex> lock(mutex_);
+     stop_worker_ = true;
+@@ -531,6 +533,11 @@
+     has_map_to_odom_ = true;
+   }
+   state_ = State::TRACKING;
++  navigation_last_accepted_steady_ns_.store(
++      std::chrono::duration_cast<std::chrono::nanoseconds>(
++          std::chrono::steady_clock::now().time_since_epoch()).count(),
++      std::memory_order_release);
++  navigation_tracking_.store(true, std::memory_order_release);
+   startup_kiss_failures_ = 0;
+   lost_kiss_attempted_ = false;
+   lost_kiss_failures_ = 0;
+@@ -879,6 +886,7 @@
+ 
+ void PriorMapLocalization::enterLost()
+ {
++  navigation_tracking_.store(false, std::memory_order_release);
+   if (state_ != State::LOST) {
+     state_ = State::LOST;
+     lost_kiss_attempted_ = false;
+@@ -889,6 +897,23 @@
+   }
+ }
+ 
++bool PriorMapLocalization::navigationReady() const noexcept
++{
++  if (!navigation_tracking_.load(std::memory_order_acquire)) {
++    return false;
++  }
++  const auto last_accepted =
++      navigation_last_accepted_steady_ns_.load(std::memory_order_acquire);
++  if (last_accepted <= 0) {
++    return false;
++  }
++  const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(
++                       std::chrono::steady_clock::now().time_since_epoch())
++                       .count();
++  constexpr std::int64_t kNavigationLocalizationFreshnessNs = 2'000'000'000LL;
++  return now >= last_accepted && now - last_accepted <= kNavigationLocalizationFreshnessNs;
++}
++
+ double PriorMapLocalization::rotationAngleDeg(const SE3& delta)
+ {
+   Eigen::AngleAxis<scalar> aa(delta.R_);
+--- a/src/super_lio/src/lio/super_lio.cpp
++++ b/src/super_lio/src/lio/super_lio.cpp
+@@ -775,6 +775,10 @@
+   }
+   
+   // Publish odometry (original or optimized)
++#ifdef LIO_WITH_RBT_NAVIGATION
++  data_wrapper_->set_navigation_localized(
++      prior_map_localization_ && prior_map_localization_->navigationReady());
++#endif
+   data_wrapper_->pub_odom(state);
+ 
+   if (prior_map_localization_ && prior_map_localization_->enabled()) {
+--- a/src/super_lio/src/rbt_adapter/LIOWrapper.cpp
++++ b/src/super_lio/src/rbt_adapter/LIOWrapper.cpp
+@@ -113,4 +113,7 @@
+ bool LIOWrapper::get_map_to_odom(BASIC::SE3& transform) const {
+     std::lock_guard lock(transform_mutex_); transform = map_to_odom_; return has_map_to_odom_;
+ }
++std::optional<std::uint8_t> LIOWrapper::time_type() const {
++    std::lock_guard lock(mutex_); return time_type_;
++}
+ } // namespace LI2Sup
+--- a/src/super_lio/src/rbt_adapter/component.cpp
++++ b/src/super_lio/src/rbt_adapter/component.cpp
+@@ -7,16 +7,23 @@
+ #include <rbt/runtime.hpp>
+ #include <rbt/wait.hpp>
+ #include <rbt/lio.hpp>
++#ifdef LIO_WITH_RBT_NAVIGATION
++#include <rbt_navigation/runtime/lio_output.hpp>
++#endif
+ #include <arpa/inet.h>
+ #include <algorithm>
++#include <atomic>
+ #include <chrono>
+ #include <condition_variable>
++#include <cmath>
+ #include <cstdlib>
+ #include <cstring>
+ #include <iostream>
++#include <latch>
+ #include <memory>
+ #include <mutex>
+ #include <string_view>
++#include <thread>
+ 
+ namespace LI2Sup {
+ namespace {
+@@ -56,6 +63,7 @@
+     InputOptions input;
+     std::string id, input_namespace;
+     std::size_t max_points = 200000, max_path = 5000;
++    bool navigation_output = false;
+ };
+ void validate_algorithm_settings() {
+     if (!g_imu_acc_scale.allFinite() || !g_imu_gyro_scale.allFinite())
+@@ -98,21 +106,59 @@
+     settings.max_points = bounded("rbt.max_output_points", 200000, 1000000);
+     settings.max_path = bounded("rbt.max_path_poses", 5000, 100000);
+     settings.input.imu_time_offset = parameters.get<double>("lio.sensor.time_offset", 0.0);
++    settings.navigation_output = parameters.get<bool>("rbt.navigation_output", false);
+     parameters.check_unknown();
+     validate_algorithm_settings();
++    if (settings.navigation_output) {
++#ifndef LIO_WITH_RBT_NAVIGATION
++        throw std::invalid_argument("rbt.navigation_output requires LIO_WITH_RBT_NAVIGATION=ON");
++#else
++        if (!g_visual_map || !g_visual_dense || g_pub_step != 1 ||
++            !g_publish_base_pose || !g_ground_robot_planar_constraint) {
++            throw std::invalid_argument(
++                "rbt.navigation_output requires map/dense output, pub_step=1, base_pose, and planar constraint");
++        }
++        if (g_map_frame != "map" || g_odom_frame != "odom" ||
++            (g_base_frame != "base_footprint" && g_base_frame != "base_link")) {
++            throw std::invalid_argument(
++                "rbt.navigation_output requires map/odom and base_footprint or base_link frames");
++        }
++        if (settings.input.imu_time_offset != 0.0) {
++            throw std::invalid_argument(
++                "rbt.navigation_output currently requires lio.sensor.time_offset=0");
++        }
++#endif
++    }
+     return settings;
+ }
+ 
+ class Outputs {
+ public:
+     Outputs(Settings settings, OdomPublisher odom, CloudPublisher cloud, MapPublisher map,
+-            PathPublisher path, StatusPublisher status)
++            PathPublisher path, StatusPublisher status
++#ifdef LIO_WITH_RBT_NAVIGATION
++            , std::optional<rbt::navigation::runtime::LioNavigationPublisher> navigation
++#endif
++            )
+         : settings_(std::move(settings)), odom_(std::move(odom)), cloud_(std::move(cloud)),
+-          map_(std::move(map)), path_(std::move(path)), status_(std::move(status)) {}
++          map_(std::move(map)), path_(std::move(path)), status_(std::move(status))
++#ifdef LIO_WITH_RBT_NAVIGATION
++          , navigation_(std::move(navigation))
++#endif
++          {}
+     std::weak_ptr<LIOWrapper> wrapper;
+     void odometry(const NavState& state, const BASIC::V3& angular) {
+         auto owner = wrapper.lock();
+         if (!owner) return;
++#ifdef LIO_WITH_RBT_NAVIGATION
++        if (settings_.navigation_output) {
++            std::lock_guard lock(state_mutex_);
++            latest_state_ = state;
++            latest_angular_ = angular;
++            latest_state_ns_ = ns(state.timestamp);
++            has_latest_state_ = true;
++        }
++#endif
+         auto sample = take(odom_.loan(), "odometry loan");
+         auto& message = sample.payload();
+         message = {};
+@@ -169,7 +215,35 @@
+             points[i] = {point.x, point.y, point.z, point.intensity};
+         }
+         take(sample.send(), "world cloud send");
+-    }
++#ifdef LIO_WITH_RBT_NAVIGATION
++        if (settings_.navigation_output) navigationWorld(ownerForNavigation(), cloud, time);
++#endif
++    }
++#ifdef LIO_WITH_RBT_NAVIGATION
++    void pollNavigationClock() {
++        if (!settings_.navigation_output) return;
++        std::lock_guard lock(navigation_clock_mutex_);
++        if (navigation_clock_attempted_) {
++            if (navigation_clock_) {
++                const auto sampled = navigation_clock_->sample();
++                if (!sampled) {
++                    noteNavigationFailure(std::string("clock sampling failed: ")
++                                          + rbt::time::to_string(sampled.error()));
++                }
++            }
++            return;
++        }
++        navigation_clock_attempted_ = true;
++        if (!navigation_clock_) {
++            try {
++                navigation_clock_ = std::make_unique<rbt::navigation::runtime::LioReceiptClock>();
++            } catch (const std::exception& error) {
++                noteNavigationFailure(std::string("clock initialization failed: ") + error.what());
++                return;
++            }
++        }
++    }
++#endif
+     // May be called by the prior-map worker; publish only from the process task.
+     void cache_map(const BASIC::CloudPtr& cloud) {
+         std::lock_guard lock(map_mutex_); pending_map_ = cloud;
+@@ -228,6 +302,120 @@
+                   << " imu_gaps=" << stats.imu_gaps << std::endl;
+     }
+ private:
++#ifdef LIO_WITH_RBT_NAVIGATION
++    std::shared_ptr<LIOWrapper> ownerForNavigation() const { return wrapper.lock(); }
++
++    void noteNavigationFailure(const std::string& reason) {
++        if (navigation_failure_logged_.exchange(true, std::memory_order_acq_rel)) return;
++        std::cerr << "LIO navigation frame disabled: " << reason << std::endl;
++    }
++
++    void navigationWorld(const std::shared_ptr<LIOWrapper>& owner,
++                         const BASIC::CloudPtr& cloud,
++                         double time) {
++        namespace nav = rbt::navigation::runtime;
++        if (!owner || !navigation_ || !settings_.navigation_output) return;
++        const auto time_type = owner->time_type();
++        if (!time_type) return;
++
++        const auto event_ns = ns(time);
++        NavState state;
++        BASIC::V3 angular = BASIC::V3::Zero();
++        {
++            std::lock_guard lock(state_mutex_);
++            if (!has_latest_state_ || latest_state_ns_ != event_ns) {
++                if (!state_mismatch_logged_) {
++                    state_mismatch_logged_ = true;
++                    std::cerr << "LIO navigation frame skipped: world scan/state timestamps differ"
++                              << std::endl;
++                }
++                return;
++            }
++            state = latest_state_;
++            angular = latest_angular_;
++        }
++
++        rbt::time::Result<rbt::time::ConvertedTimestamp> converted =
++            rbt::time::TimeError::ClockMappingUnavailable;
++        {
++            std::lock_guard lock(navigation_clock_mutex_);
++            if (!navigation_clock_) return;
++            converted = navigation_clock_->convert(event_ns, *time_type);
++        }
++        if (!converted) {
++            noteNavigationFailure(std::string("receipt timestamp rejected: ")
++                                  + rbt::time::to_string(converted.error()));
++            return;
++        }
++        if (cloud->size() > nav::lio_navigation_max_points) {
++            noteNavigationFailure("world scan exceeds 200000 points");
++            return;
++        }
++
++        nav::LioNavigationFrameFields fields;
++        fields.world_frame = g_odom_frame;
++        fields.base_frame = g_base_frame;
++        const BASIC::M3 R_imu = state.R.R_;
++        BASIC::M3 R_base = R_imu * g_odom_robo.R_;
++        BASIC::V3 position = R_imu * (-g_odom_robo.R_ * g_odom_robo.t_) + state.p;
++        const BASIC::V3 r_in_imu = -g_odom_robo.R_ * g_odom_robo.t_;
++        const BASIC::V3 world_base_velocity =
++            state.v + R_imu * (angular.cross(r_in_imu));
++        const BASIC::V3 world_angular_velocity = R_imu * angular;
++        if (g_ground_robot_planar_constraint) {
++            const auto yaw = std::atan2(R_base(1, 0), R_base(0, 0));
++            R_base = Eigen::AngleAxis<BASIC::scalar>(yaw, BASIC::V3::UnitZ()).toRotationMatrix();
++            position.z() = g_ground_robot_base_z;
++        }
++        const BASIC::V3 linear = R_base.transpose() * world_base_velocity;
++        const BASIC::V3 omega = R_base.transpose() * world_angular_velocity;
++        BASIC::Quat base_quaternion(R_base);
++        base_quaternion.normalize();
++        for (int i = 0; i < 3; ++i) {
++            fields.odom_base_position[static_cast<std::size_t>(i)] = position[i];
++            fields.linear_velocity[static_cast<std::size_t>(i)] = linear[i];
++            fields.angular_velocity[static_cast<std::size_t>(i)] = omega[i];
++        }
++        for (int i = 0; i < 4; ++i) {
++            fields.odom_base_quaternion_xyzw[static_cast<std::size_t>(i)] =
++                base_quaternion.coeffs()[i];
++        }
++
++        BASIC::V3 sensor_origin = state.p + R_imu * g_lidar_imu.t_;
++        for (int i = 0; i < 3; ++i) {
++            fields.sensor_origin[static_cast<std::size_t>(i)] = sensor_origin[i];
++        }
++        BASIC::SE3 map_to_odom;
++        fields.map_odom_valid = owner->navigation_localized()
++            && owner->get_map_to_odom(map_to_odom);
++        if (fields.map_odom_valid) {
++            BASIC::Quat map_quaternion(map_to_odom.R_);
++            map_quaternion.normalize();
++            for (int i = 0; i < 3; ++i) {
++                fields.map_odom_position[static_cast<std::size_t>(i)] = map_to_odom.t_[i];
++            }
++            for (int i = 0; i < 4; ++i) {
++                fields.map_odom_quaternion_xyzw[static_cast<std::size_t>(i)] =
++                    map_quaternion.coeffs()[i];
++            }
++        }
++
++        std::vector<nav::wire::LioPoint> points;
++        points.reserve(cloud->size());
++        for (const auto& point : *cloud) {
++            if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
++                !std::isfinite(point.z) || !std::isfinite(point.intensity)) {
++                noteNavigationFailure("world scan contains a nonfinite point");
++                return;
++            }
++            points.push_back({point.x, point.y, point.z, point.intensity});
++        }
++        const auto header = nav::makeLioNavigationHeader(
++            converted.value(), ++navigation_sequence_, fields);
++        nav::publishLioNavigationFrame(*navigation_, header, points);
++    }
++#endif
++
+     Settings settings_;
+     OdomPublisher odom_;
+     CloudPublisher cloud_;
+@@ -237,6 +425,20 @@
+     std::mutex map_mutex_;
+     BASIC::CloudPtr pending_map_;
+     std::uint64_t odom_sequence_ = 0, world_sequence_ = 0, map_sequence_ = 0, path_sequence_ = 0;
++#ifdef LIO_WITH_RBT_NAVIGATION
++    std::optional<rbt::navigation::runtime::LioNavigationPublisher> navigation_;
++    std::unique_ptr<rbt::navigation::runtime::LioReceiptClock> navigation_clock_;
++    std::mutex navigation_clock_mutex_;
++    std::mutex state_mutex_;
++    NavState latest_state_;
++    BASIC::V3 latest_angular_ = BASIC::V3::Zero();
++    std::uint64_t latest_state_ns_ = 0;
++    std::uint64_t navigation_sequence_ = 0;
++    bool has_latest_state_ = false;
++    std::atomic<bool> navigation_failure_logged_ { false };
++    bool navigation_clock_attempted_ = false;
++    bool state_mismatch_logged_ = false;
++#endif
+ };
+ 
+ class LIOComponent final : public rbt::Component {
+@@ -273,8 +475,22 @@
+         auto status_out = provide<StatusTag>(context, lio::INPUT_STATUS_DESCRIPTOR, [](auto descriptor) {
+             return StatusPublisher::create(descriptor, lio::INPUT_STATUS_DESCRIPTOR);
+         });
++#ifdef LIO_WITH_RBT_NAVIGATION
++        std::optional<rbt::navigation::runtime::LioNavigationPublisher> navigation_out;
++        if (settings_.navigation_output) {
++            navigation_out.emplace(rbt::navigation::runtime::provideLioNavigationFrameV1(
++                context, [](const auto& descriptor, const auto& type, std::size_t maximum) {
++                    return rbt::navigation::runtime::LioNavigationPublisher::create(
++                        descriptor, type, maximum);
++                }));
++        }
++#endif
+         auto outputs = std::make_shared<Outputs>(settings_, std::move(odom_out), std::move(world_out),
+-            std::move(map_out), std::move(path_out), std::move(status_out));
++            std::move(map_out), std::move(path_out), std::move(status_out)
++#ifdef LIO_WITH_RBT_NAVIGATION
++            , std::move(navigation_out)
++#endif
++            );
+         LIOWrapper::Outputs callbacks;
+         callbacks.odometry = [outputs](const auto& state, const auto& angular) { outputs->odometry(state, angular); };
+         callbacks.world_cloud = [outputs](const auto& points, double time) { outputs->world(points, time); };
+@@ -287,8 +503,32 @@
+         algorithm->init();
+         const auto process = context.process_instance();
+         const auto activation = context.activation_id();
++        const auto input_clock_ready = std::make_shared<std::latch>(1);
++#ifdef LIO_WITH_RBT_NAVIGATION
++        if (settings_.navigation_output) {
++            const auto clock_task = context.spawn_critical("navigation-clock",
++                [outputs, input_clock_ready](std::stop_token stop) {
++                    outputs->pollNavigationClock();
++                    input_clock_ready->count_down();
++                    while (!stop.stop_requested()) {
++                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++                        if (stop.stop_requested()) break;
++                        outputs->pollNavigationClock();
++                    }
++                    return rbt::TaskOutcome::completed();
++                });
++            if (!clock_task) {
++                return rbt::Result<void>::failure("failed to spawn navigation clock task");
++            }
++        } else {
++            input_clock_ready->count_down();
++        }
++#else
++        input_clock_ready->count_down();
++#endif
+         const auto input_task = context.spawn_critical("receive", [cloud = std::move(cloud), imu = std::move(imu),
+-                wrapper, process, activation](std::stop_token stop) mutable {
++                wrapper, process, activation, input_clock_ready](std::stop_token stop) mutable {
++            input_clock_ready->wait();
+             auto wait = take(rbt::WaitContext::create(process, activation), "input WaitSet");
+             const auto cloud_token = rbt::WaitToken::new_token(1), imu_token = rbt::WaitToken::new_token(2);
+             std::string error;

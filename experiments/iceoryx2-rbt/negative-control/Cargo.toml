@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+
+[package]
+name = "rbt-rpc-upstream-negative-control"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+iceoryx2 = { path = "../../../target/iceoryx2-v0.10.0/iceoryx2" }
+
+[patch.crates-io]
+iceoryx2 = { path = "../../../target/iceoryx2-v0.10.0/iceoryx2" }
+
+[[test]]
+name = "rpc_native_identity"
+path = "../../../crates/rbt-iox2/tests/rpc_native_identity.rs"

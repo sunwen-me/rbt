@@ -1,0 +1,27 @@
+# SOFTWARE-ONLY FIXTURE. These illustrative values are explicitly provided by
+# this example; they are not measurements or calibrated hardware extrinsics.
+# Configured extrinsic — calibration accuracy unverified.
+
+[[transforms.static]]
+parent = "base_link"
+child = "camera_link"
+translation_m = [0.25, 0.0, 0.42]
+rotation_xyzw = [0.0, 0.0, 0.0, 1.0]
+
+[[transforms.static]]
+parent = "camera_link"
+child = "camera_optical"
+translation_m = [0.0, 0.0, 0.0]
+rotation_xyzw = [-0.5, 0.5, -0.5, 0.5]
+
+[[transforms.static]]
+parent = "camera_link"
+child = "lidar_link"
+translation_m = [0.10, 0.0, 0.08]
+rotation_xyzw = [0.0, 0.0, 0.0, 1.0]
+
+[[transforms.static]]
+parent = "camera_link"
+child = "imu_link"
+translation_m = [-0.05, 0.0, 0.02]
+rotation_xyzw = [0.0, 0.0, 0.0, 1.0]

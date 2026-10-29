@@ -1,0 +1,6 @@
+7bb5f1423437041da129b8ad8ba7279eeb093ac8690c4d92a30feb8fed3f1834  0001-preserve-service-settings-and-isolate-wire-format.patch
+0b38498e39d8835bb27392458d5d9ee48cc580b53baaf7733eaaf051e3aa8b64  0002-local-readiness-and-import-identity.patch
+896e9a1068ef1eeb916a81d1ec36b4340af021fbd667778a041e1a978fee8de5  0003-bounded-carrier-queues.patch
+41d631cea778f2022b65cf89c9bef0945b1fc3f0ea89c9373eeab962cde43fce  0004-linux-reactive-tunnel-and-cli.patch
+a1ba21b6bc3d867a2f2e98c760f90e120b8cadd9c4385dd27d3b18bf9cb1c2b5  0005-rpc-response-identity-and-request-id-exhaustion.patch
+2a8fe95695500987be0dd793c177e9a44f188257acc8cbf0904b199c25f282e0  0006-ffi-response-storage-for-rpc-identity.patch

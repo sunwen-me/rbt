@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = ["."]
+
+[package]
+name = "rpc-native-correlation"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+iceoryx2 = "=0.9.3"
+
+[dev-dependencies]
+rbt-iox2 = { path = "../../crates/rbt-iox2" }
+
+[[test]]
+name = "rbt-resources"
+path = "../../crates/rbt-iox2/tests/rpc_resources.rs"
+
+[[test]]
+name = "rbt-fixed"
+path = "../../crates/rbt-iox2/tests/rpc_fixed.rs"
+
+[[test]]
+name = "rbt-dynamic"
+path = "../../crates/rbt-iox2/tests/rpc_dynamic.rs"
+
+[[test]]
+name = "rbt-stress"
+path = "../../crates/rbt-iox2/tests/rpc_stress.rs"

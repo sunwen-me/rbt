@@ -1,0 +1,11 @@
+[package]
+name = "rbt-rpc-interop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+rbt-iox2 = { path = "../rbt-iox2" }
+

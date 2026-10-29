@@ -1,0 +1,8 @@
+name = "iceoryx2-rbt"
+fork_version = "0.10.0-rbt.2"
+upstream_url = "https://github.com/eclipse-iceoryx/iceoryx2.git"
+upstream_tag = "v0.10.0"
+base_commit = "135d09dd8b29f321f1725920d434864c4e512378"
+branch = "codex/iceoryx2-rbt-0.10.0"
+wire_namespace = "iox2-rbt/v1"
+production_baseline = "unified RPC/FFI + network patch series"

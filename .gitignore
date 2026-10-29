@@ -1,0 +1,90 @@
+# Rust build output (at the workspace root and in nested experiments)
+target/
+# Reproducible dependency checkout; maintained delta lives in patches/.
+/third_party/iceoryx2-rbt/source/
+**/*.rs.bk
+
+# CMake / C++ build output
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+Testing/
+
+# Python bytecode, test caches, packaging, and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+ENV/
+dist/
+wheelhouse/
+*.egg-info/
+*.whl
+
+# Native build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.dylib
+*.so
+*.so.*
+*.dSYM/
+
+# Logs, traces, temporary files, and crash dumps
+*.log
+*.mcap
+*.trace
+*.profraw
+*.profdata
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+/core
+**/core.[0-9]*
+/0
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local workspace data and retained execution evidence (kept on disk).
+/output/
+/scratchtarget/
+/Log/
+/log/
+/tmp/
+/.codex/
+/.claude/
+/json
+/navigation.zip
+/pelican-bicycle.svg
+
+# Small canonical recording fixtures are source-controlled test inputs.
+!/tests/fixtures/mcap/*.mcap

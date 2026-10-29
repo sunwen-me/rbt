@@ -1,0 +1,533 @@
+diff --git a/integrations/zenoh/link-carrier/src/carrier.rs b/integrations/zenoh/link-carrier/src/carrier.rs
+index 473ba4e94..964dae26a 100644
+--- a/integrations/zenoh/link-carrier/src/carrier.rs
++++ b/integrations/zenoh/link-carrier/src/carrier.rs
+@@ -28,11 +28,13 @@ use crate::channel::{ChannelError, ZenohChannel};
+ use crate::fingerprint::Encoded;
+ use crate::keys;
+ use crate::offers::OfferTracker;
++use crate::queue::{QueueConfig, QueueMetrics, QueueStatsSnapshot};
+ 
+ #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+ pub enum CreationError {
+     Session,
+     Subscriber,
++    InvalidQueueConfig,
+ }
+ 
+ impl core::fmt::Display for CreationError {
+@@ -74,11 +76,24 @@ pub struct ZenohCarrier {
+     _subscriber: zenoh::pubsub::Subscriber<()>,
+     tracker: Arc<OfferTracker>,
+     wake: Arc<OnceLock<WakeHandle>>,
++    queue_config: QueueConfig,
++    queue_metrics: Arc<QueueMetrics>,
+ }
+ 
+ impl ZenohCarrier {
+     /// Creates a carrier on a session opened with `config`.
+     pub fn create(config: zenoh::Config) -> Result<Self, CreationError> {
++        Self::create_with_queue_config(config, QueueConfig::default())
++    }
++
++    /// Creates a carrier with the provided per-channel inbox configuration.
++    pub fn create_with_queue_config(
++        config: zenoh::Config,
++        queue_config: QueueConfig,
++    ) -> Result<Self, CreationError> {
++        if queue_config.validate().is_err() {
++            return Err(CreationError::InvalidQueueConfig);
++        }
+         let origin = origin!("ZenohCarrier::create");
+         let session = fail!(
+             from origin,
+@@ -86,11 +101,22 @@ impl ZenohCarrier {
+             with CreationError::Session,
+             "Failed to open the zenoh session"
+         );
+-        Self::open(session)
++        Self::open_with_queue_config(session, queue_config)
+     }
+ 
+     /// Creates a carrier on `session`.
+     pub fn open(session: Session) -> Result<Self, CreationError> {
++        Self::open_with_queue_config(session, QueueConfig::default())
++    }
++
++    /// Creates a carrier on `session` with the provided per-channel inbox configuration.
++    pub fn open_with_queue_config(
++        session: Session,
++        queue_config: QueueConfig,
++    ) -> Result<Self, CreationError> {
++        if queue_config.validate().is_err() {
++            return Err(CreationError::InvalidQueueConfig);
++        }
+         let origin = origin!("ZenohCarrier::open");
+ 
+         let id = PeerId::new(session.zid().to_le_bytes());
+@@ -118,6 +144,8 @@ impl ZenohCarrier {
+             _subscriber: subscriber,
+             tracker,
+             wake,
++            queue_config,
++            queue_metrics: Arc::new(QueueMetrics::default()),
+         })
+     }
+ 
+@@ -125,6 +153,11 @@ impl ZenohCarrier {
+     pub fn id(&self) -> PeerId {
+         self.id
+     }
++
++    /// Returns aggregate inbox counters for this carrier.
++    pub fn queue_stats(&self) -> QueueStatsSnapshot {
++        self.queue_metrics.snapshot()
++    }
+ }
+ 
+ impl Carrier for ZenohCarrier {
+@@ -206,7 +239,13 @@ impl Carrier for ZenohCarrier {
+             "Failed to encode the descriptor of {}", descriptor.name
+         );
+         let key = keys::channel(&descriptor.hash, encoded.fingerprint());
+-        ZenohChannel::open(&self.session, key, self.wake.clone())
++        ZenohChannel::open(
++            &self.session,
++            key,
++            self.wake.clone(),
++            self.queue_config,
++            self.queue_metrics.clone(),
++        )
+     }
+ }
+ 
+diff --git a/integrations/zenoh/link-carrier/src/channel.rs b/integrations/zenoh/link-carrier/src/channel.rs
+index 25863d40c..72a0c2192 100644
+--- a/integrations/zenoh/link-carrier/src/channel.rs
++++ b/integrations/zenoh/link-carrier/src/channel.rs
+@@ -22,9 +22,7 @@ use zenoh::qos::Reliability;
+ use zenoh::sample::{Locality, Sample};
+ 
+ use crate::inbox::Inbox;
+-
+-/// Frames a channel holds pending.
+-const CAPACITY: usize = 64;
++use crate::queue::{QueueConfig, QueueMetrics};
+ 
+ #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+ pub enum ChannelError {
+@@ -64,6 +62,8 @@ impl ZenohChannel {
+         session: &zenoh::Session,
+         key: OwnedKeyExpr,
+         wake: Arc<OnceLock<WakeHandle>>,
++        queue_config: QueueConfig,
++        queue_metrics: Arc<QueueMetrics>,
+     ) -> Result<Self, ChannelError> {
+         let origin = origin!("ZenohChannel::open");
+         let publisher = fail!(
+@@ -80,7 +80,7 @@ impl ZenohChannel {
+             from origin,
+             when session
+                 .declare_subscriber(key.clone())
+-                .with(Inbox::new(CAPACITY, wake))
++                .with(Inbox::new(queue_config, wake, queue_metrics))
+                 .allowed_origin(Locality::Remote)
+                 .wait(),
+             with ChannelError::Subscriber,
+diff --git a/integrations/zenoh/link-carrier/src/inbox.rs b/integrations/zenoh/link-carrier/src/inbox.rs
+index e3470e595..11fcd10fa 100644
+--- a/integrations/zenoh/link-carrier/src/inbox.rs
++++ b/integrations/zenoh/link-carrier/src/inbox.rs
+@@ -16,22 +16,25 @@ use iceoryx2_link_backend::WakeHandle;
+ use iceoryx2_log::{origin, warn};
+ use zenoh::handlers::{Callback, IntoHandler};
+ 
++use crate::queue::{BoundedQueue, PushOutcome, QueueConfig, QueueMetrics};
++
+ /// A queue from zenoh's callback threads to the thread driving the
+ /// carrier.
+ pub(crate) struct Inbox<T> {
+-    sender: flume::Sender<T>,
+-    receiver: flume::Receiver<T>,
++    queue: Arc<BoundedQueue<T>>,
+     /// Signalled on every push.
+     wake: Arc<OnceLock<WakeHandle>>,
+ }
+ 
+ impl<T> Inbox<T> {
+-    /// An inbox holding up to `capacity` items.
+-    pub(crate) fn new(capacity: usize, wake: Arc<OnceLock<WakeHandle>>) -> Self {
+-        let (sender, receiver) = flume::bounded(capacity);
++    /// An inbox using the carrier's queue configuration and shared counters.
++    pub(crate) fn new(
++        config: QueueConfig,
++        wake: Arc<OnceLock<WakeHandle>>,
++        metrics: Arc<QueueMetrics>,
++    ) -> Self {
+         Self {
+-            sender,
+-            receiver,
++            queue: Arc::new(BoundedQueue::new(config, metrics)),
+             wake,
+         }
+     }
+@@ -39,31 +42,37 @@ impl<T> Inbox<T> {
+     /// A handle to push with.
+     pub(crate) fn sender(&self) -> Sender<T> {
+         Sender {
+-            sender: self.sender.clone(),
++            queue: self.queue.clone(),
+             wake: self.wake.clone(),
+         }
+     }
+ 
+     /// The oldest item not popped yet, if any.
+     pub(crate) fn pop(&self) -> Option<T> {
+-        self.receiver.try_recv().ok()
++        self.queue.pop()
+     }
+ }
+ 
+ /// The pushing side of an [`Inbox`].
+ #[derive(Clone)]
+ pub(crate) struct Sender<T> {
+-    sender: flume::Sender<T>,
++    queue: Arc<BoundedQueue<T>>,
+     wake: Arc<OnceLock<WakeHandle>>,
+ }
+ 
+ impl<T> Sender<T> {
+-    /// Pushes an item, dropped with a warning when the inbox is full.
++    /// Pushes an item without waiting for inbox capacity.
+     pub(crate) fn push(&self, item: T) {
+         let origin = origin!("Inbox::push");
+ 
+-        if self.sender.try_send(item).is_err() {
+-            warn!(from origin, "An arrival was dropped, the inbox is full");
++        match self.queue.push(item) {
++            PushOutcome::Accepted => {}
++            PushOutcome::DroppedNewest => {
++                warn!(from origin, "An arrival was dropped by the full inbox (DropNewest)");
++            }
++            PushOutcome::DroppedOldest => {
++                warn!(from origin, "The oldest arrival was dropped by the full inbox (DropOldest)");
++            }
+         }
+         if let Some(wake) = self.wake.get() {
+             wake.signal();
+diff --git a/integrations/zenoh/link-carrier/src/lib.rs b/integrations/zenoh/link-carrier/src/lib.rs
+index 1cecd68ef..fb5f93ac9 100644
+--- a/integrations/zenoh/link-carrier/src/lib.rs
++++ b/integrations/zenoh/link-carrier/src/lib.rs
+@@ -30,8 +30,9 @@
+ //!   services offered on their host.
+ //! * Samples and notifications of a service cross as bytes on zenoh keys that
+ //!   carry a fingerprint of the service's description, so a service only
+-//!   receives bytes consistent with its types. Bytes are exchanged between
+-//!   hosts reliably.
++//!   receives bytes consistent with its types. Zenoh uses reliable delivery,
++//!   while received frames pass through bounded inboxes that may drop frames
++//!   according to their configured [`QueueConfig`] overflow policy.
+ //! * The [`ZenohCarrier`] implements [`iceoryx2_link_backend::Reactive`] and
+ //!   signals the tunnel to wake up whenever an offer changes or data arrives.
+ 
+@@ -41,6 +42,8 @@ mod fingerprint;
+ mod inbox;
+ mod keys;
+ mod offers;
++mod queue;
+ 
+ pub use carrier::{AnnouncementError, CreationError, ZenohCarrier};
+ pub use channel::{ChannelError, Error as ChannelSendError, ZenohChannel};
++pub use queue::{OverflowPolicy, QueueConfig, QueueConfigError, QueueStatsSnapshot};
+diff --git a/integrations/zenoh/link-carrier/src/queue.rs b/integrations/zenoh/link-carrier/src/queue.rs
+new file mode 100644
+index 000000000..613a9ebda
+--- /dev/null
++++ b/integrations/zenoh/link-carrier/src/queue.rs
+@@ -0,0 +1,285 @@
++// Copyright (c) 2025 Contributors to the Eclipse Foundation
++//
++// See the NOTICE file(s) distributed with this work for additional
++// information regarding copyright ownership.
++//
++// This program and the accompanying materials are made available under the
++// terms of the Apache Software License 2.0 which is available at
++// https://www.apache.org/licenses/LICENSE-2.0, or the MIT license which is
++// available at https://opensource.org/licenses/MIT.
++//
++// SPDX-License-Identifier: Apache-2.0 OR MIT
++
++use std::collections::VecDeque;
++use std::sync::{Arc, Mutex, MutexGuard};
++
++/// The action taken when a carrier inbox reaches its configured capacity.
++#[derive(Debug, Eq, PartialEq, Clone, Copy)]
++pub enum OverflowPolicy {
++    /// Keep queued frames and drop the arriving frame.
++    DropNewest,
++    /// Keep the arriving frame and drop the oldest queued frame.
++    DropOldest,
++}
++
++/// Capacity and overflow behavior for each Zenoh channel inbox.
++#[derive(Debug, Eq, PartialEq, Clone, Copy)]
++pub struct QueueConfig {
++    /// Maximum number of frames held by each inbox.
++    pub capacity: usize,
++    /// How an arriving frame is handled when the inbox is full.
++    pub overflow: OverflowPolicy,
++}
++
++impl QueueConfig {
++    /// The default capacity used by existing carrier constructors.
++    pub const DEFAULT_CAPACITY: usize = 64;
++
++    /// Creates a valid queue configuration.
++    pub fn new(capacity: usize, overflow: OverflowPolicy) -> Result<Self, QueueConfigError> {
++        let config = Self { capacity, overflow };
++        config.validate()?;
++        Ok(config)
++    }
++
++    pub(crate) fn validate(&self) -> Result<(), QueueConfigError> {
++        if self.capacity == 0 {
++            return Err(QueueConfigError::CapacityMustBeNonZero);
++        }
++        Ok(())
++    }
++}
++
++impl Default for QueueConfig {
++    fn default() -> Self {
++        Self {
++            capacity: Self::DEFAULT_CAPACITY,
++            overflow: OverflowPolicy::DropNewest,
++        }
++    }
++}
++
++/// A queue configuration error.
++#[derive(Debug, Eq, PartialEq, Clone, Copy)]
++pub enum QueueConfigError {
++    /// Queue capacity must be greater than zero.
++    CapacityMustBeNonZero,
++}
++
++impl core::fmt::Display for QueueConfigError {
++    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
++        write!(f, "QueueConfigError::{self:?}")
++    }
++}
++
++impl core::error::Error for QueueConfigError {}
++
++/// A point-in-time snapshot of aggregate carrier inbox counters.
++#[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
++pub struct QueueStatsSnapshot {
++    /// Frames accepted into inboxes, including arrivals that evicted an older frame.
++    pub accepted: u64,
++    /// Frames removed from inboxes by the carrier.
++    pub popped: u64,
++    /// Arriving frames discarded under [`OverflowPolicy::DropNewest`].
++    pub dropped_newest: u64,
++    /// Previously queued frames evicted under [`OverflowPolicy::DropOldest`].
++    pub dropped_oldest: u64,
++}
++
++#[derive(Default)]
++pub(crate) struct QueueMetrics {
++    counters: Mutex<QueueStatsSnapshot>,
++}
++
++impl QueueMetrics {
++    pub(crate) fn snapshot(&self) -> QueueStatsSnapshot {
++        *lock(&self.counters)
++    }
++
++    fn update(&self, update: impl FnOnce(&mut QueueStatsSnapshot)) {
++        update(&mut lock(&self.counters));
++    }
++}
++
++pub(crate) enum PushOutcome {
++    Accepted,
++    DroppedNewest,
++    DroppedOldest,
++}
++
++pub(crate) struct BoundedQueue<T> {
++    items: Mutex<VecDeque<T>>,
++    config: QueueConfig,
++    metrics: Arc<QueueMetrics>,
++}
++
++impl<T> BoundedQueue<T> {
++    pub(crate) fn new(config: QueueConfig, metrics: Arc<QueueMetrics>) -> Self {
++        debug_assert!(config.validate().is_ok());
++        Self {
++            items: Mutex::new(VecDeque::new()),
++            config,
++            metrics,
++        }
++    }
++
++    pub(crate) fn push(&self, item: T) -> PushOutcome {
++        let mut items = lock(&self.items);
++        if items.len() >= self.config.capacity {
++            match self.config.overflow {
++                OverflowPolicy::DropNewest => {
++                    self.metrics.update(|counters| {
++                        counters.dropped_newest = counters.dropped_newest.saturating_add(1);
++                    });
++                    PushOutcome::DroppedNewest
++                }
++                OverflowPolicy::DropOldest => {
++                    let _ = items.pop_front();
++                    items.push_back(item);
++                    self.metrics.update(|counters| {
++                        counters.accepted = counters.accepted.saturating_add(1);
++                        counters.dropped_oldest = counters.dropped_oldest.saturating_add(1);
++                    });
++                    PushOutcome::DroppedOldest
++                }
++            }
++        } else {
++            items.push_back(item);
++            self.metrics.update(|counters| {
++                counters.accepted = counters.accepted.saturating_add(1);
++            });
++            PushOutcome::Accepted
++        }
++    }
++
++    pub(crate) fn pop(&self) -> Option<T> {
++        let item = lock(&self.items).pop_front();
++        if item.is_some() {
++            self.metrics.update(|counters| {
++                counters.popped = counters.popped.saturating_add(1);
++            });
++        }
++        item
++    }
++
++    #[cfg(test)]
++    fn len(&self) -> usize {
++        lock(&self.items).len()
++    }
++}
++
++fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
++    mutex
++        .lock()
++        .unwrap_or_else(|poisoned| poisoned.into_inner())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::{
++        BoundedQueue, OverflowPolicy, QueueConfig, QueueConfigError, QueueMetrics,
++        QueueStatsSnapshot,
++    };
++    use std::sync::Arc;
++
++    #[test]
++    fn rejects_zero_capacity() {
++        assert_eq!(
++            QueueConfig::new(0, OverflowPolicy::DropNewest),
++            Err(QueueConfigError::CapacityMustBeNonZero)
++        );
++    }
++
++    #[test]
++    fn drop_newest_keeps_queued_frames_and_counts_drops() {
++        let metrics = Arc::new(QueueMetrics::default());
++        let queue = BoundedQueue::new(
++            QueueConfig::new(2, OverflowPolicy::DropNewest).unwrap(),
++            metrics.clone(),
++        );
++
++        assert!(matches!(queue.push(1), super::PushOutcome::Accepted));
++        assert!(matches!(queue.push(2), super::PushOutcome::Accepted));
++        assert!(matches!(queue.push(3), super::PushOutcome::DroppedNewest));
++        assert_eq!(queue.pop(), Some(1));
++        assert_eq!(queue.pop(), Some(2));
++        assert_eq!(queue.pop(), None);
++        assert_eq!(
++            metrics.snapshot(),
++            QueueStatsSnapshot {
++                accepted: 2,
++                popped: 2,
++                dropped_newest: 1,
++                dropped_oldest: 0,
++            }
++        );
++    }
++
++    #[test]
++    fn drop_oldest_keeps_arriving_frames_and_counts_evictions() {
++        let metrics = Arc::new(QueueMetrics::default());
++        let queue = BoundedQueue::new(
++            QueueConfig::new(1, OverflowPolicy::DropOldest).unwrap(),
++            metrics.clone(),
++        );
++
++        assert!(matches!(queue.push(1), super::PushOutcome::Accepted));
++        assert!(matches!(queue.push(2), super::PushOutcome::DroppedOldest));
++        assert_eq!(queue.pop(), Some(2));
++        assert_eq!(queue.pop(), None);
++        assert_eq!(
++            metrics.snapshot(),
++            QueueStatsSnapshot {
++                accepted: 2,
++                popped: 1,
++                dropped_newest: 0,
++                dropped_oldest: 1,
++            }
++        );
++    }
++
++    #[test]
++    fn concurrent_pushes_never_exceed_capacity() {
++        const THREADS: usize = 8;
++        const PUSHES_PER_THREAD: usize = 1_000;
++        const CAPACITY: usize = 8;
++
++        for overflow in [OverflowPolicy::DropNewest, OverflowPolicy::DropOldest] {
++            let metrics = Arc::new(QueueMetrics::default());
++            let queue = Arc::new(BoundedQueue::new(
++                QueueConfig::new(CAPACITY, overflow).unwrap(),
++                metrics.clone(),
++            ));
++            let mut threads = Vec::new();
++
++            for thread_id in 0..THREADS {
++                let queue = queue.clone();
++                threads.push(std::thread::spawn(move || {
++                    for item in 0..PUSHES_PER_THREAD {
++                        let _ = queue.push(thread_id * PUSHES_PER_THREAD + item);
++                    }
++                }));
++            }
++
++            for thread in threads {
++                thread.join().unwrap();
++            }
++
++            assert!(queue.len() <= CAPACITY);
++            let snapshot = metrics.snapshot();
++            assert_eq!(
++                snapshot.accepted + snapshot.dropped_newest,
++                (THREADS * PUSHES_PER_THREAD) as u64
++            );
++            if overflow == OverflowPolicy::DropOldest {
++                assert_eq!(
++                    snapshot.dropped_oldest as usize,
++                    THREADS * PUSHES_PER_THREAD - CAPACITY
++                );
++            } else {
++                assert_eq!(snapshot.accepted as usize, CAPACITY);
++            }
++        }
++    }
++}

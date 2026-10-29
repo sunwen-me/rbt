@@ -1,0 +1,13 @@
+// Demo messages shared by the Rust and C++ runtime examples.
+package rbt.demo;
+abi 1;
+
+message Frame {
+    sequence: u64;
+    value: u64;
+}
+
+message Detection {
+    sequence: u64;
+    value: u64;
+}
