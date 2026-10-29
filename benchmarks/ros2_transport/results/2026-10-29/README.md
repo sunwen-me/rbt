@@ -92,6 +92,26 @@ installation, with loans enabled. That probe does not transfer samples or
 measure resources. The successful fixed-array loan results do not imply
 that standard sensor messages automatically use this zero-copy path.
 
+This shows a native-schema and API usability advantage for RBT in this tested
+setup. RBT's [`Image` and `PointCloud` schemas](../../../../types/sensor.rbt)
+are header-plus-contiguous-slice messages, and its [C++ SDK ownership model](../../../../docs/cpp-sdk.md)
+exposes direct fixed-message and slice loan/receive access ([C++ stream API](../../../../sdk/cpp/include/rbt/stream.hpp)).
+Slice payload length can vary per send within the publisher's configured
+capacity, without replacing these native sensor schemas with fixed large arrays.
+Unbounded string/sequence fields in the ROS sensor messages, including
+`Imu.header.frame_id`, do not satisfy this loan route's plain, bounded type
+requirement ([Fast DDS loan requirements](https://fast-dds.docs.eprosima.com/en/stable/fastdds/use_cases/zero_copy/zero_copy.html)).
+The [capability probe](standard-loan-probe.jsonl) reports `can_loan=false` at
+both endpoints for all three standard messages. This advantage is specific
+to the tested native APIs and middleware configuration; other ROS 2
+middleware or application designs can offer zero-copy paths.
+
+The fixed-array loan benchmark used matched custom messages on both stacks.
+Standard `sensor_msgs` were capability-probed only, not benchmarked for CPU or
+memory. RBT schemas are not wire/ABI-compatible with `sensor_msgs`; copies in
+external drivers or conversions are outside this IPC result. The zero-copy
+data plane beneath RBT is provided by iceoryx2.
+
 ## Artifacts and reproduction
 
 - [All 27 trial rows](trials.csv): CPU, PSS/RSS, counts, rates, delivery, latency and alias counts.

@@ -88,6 +88,16 @@ capability probes returned false on this ROS installation. This is not a
 QCS8550 measurement. See the [full report, ranges and per-trial data](benchmarks/ros2_transport/results/2026-10-29/README.md)
 and [reproduction instructions](benchmarks/ros2_transport/README.md).
 
+**RBT's practical advantage for native sensor IPC:** its existing
+[`Image` and `PointCloud` schemas](types/sensor.rbt) support contiguous,
+variable-length payloads within a configured capacity, with direct
+[loan/receive access](docs/cpp-sdk.md#data-plane-ownership). Applications can
+use these native sensor contracts on the iceoryx2 shared-memory path, while
+standard `sensor_msgs` lack native loan support in the tested ROS 2/Fast DDS
+configuration. RBT's schemas have their own layout; driver or format
+conversion may still copy data. The performance table uses matched custom
+messages on both stacks; standard-message CPU/memory was not measured.
+
 ## Install and run the first graph
 
 The Rust-only first path needs Rust 1.89+ and a Linux x86_64 host. From a source
