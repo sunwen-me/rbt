@@ -4,6 +4,10 @@
 Composer（编排器）决定运行哪些组件；带类型的数据负载通过共享内存在组件进程之间直接传递。
 Composer 不会进入负载传输路径。
 
+RBT 面向 Linux 同机多进程机器人应用，适用于图像、点云和控制等负载。应用可直接使用
+Rust、C++ 或 Python SDK，也可按需由 Composer 编排组件；目标是在高性能本地 IPC 之上，
+提供机器人消息、生命周期、时间与资源边界契约。
+
 本仓库提供可安装的 v0.8 实机运行时，以及面向 Rust、C++20 和 CPython/NumPy
 发布者与订阅者的 SDK。仓库包含生命周期运行时、生成的消息绑定、运行时诊断、
 外部消费者安装测试、多语言故障测试、长时间稳定性测试，以及可重复执行的验证
@@ -27,17 +31,32 @@ TF 契约、Composer，以及 `rbt` CLI。当前仓库范围见[项目状态](PR
 
 ## 为什么在 iceoryx2 之上使用 rbt？
 
-[iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) 已经提供原生零拷贝数据平面：
-发布/订阅、请求/响应与事件、loan、WaitSet、发现、资源清理、诊断和多语言 API。
-RBT 使用这些基础能力，并在其上增加应用间共享的契约。
+[iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) 提供原生共享内存零拷贝、分配器、
+loan/borrow、发布/订阅、请求/响应、事件与 WaitSet、服务发现和传输资源清理。RBT 使用
+这些通用 IPC 基础，并在其上增加机器人应用间共享的契约。
+
+iceoryx2 维护者在[设计讨论 #1711](https://github.com/eclipse-iceoryx/iceoryx2/discussions/1711)
+中强调，零拷贝优先还需要明确载荷生命周期、背压、进程崩溃恢复和任务执行约束。
+RBT 沿用这一设计思路，把这些边界落实为可复用、可检查的机器人应用接口；性能数据
+单独列在后文的跨进程实测中。
 
 | iceoryx2 提供 | RBT 增加 |
 |---|---|
-| 原生共享内存流、loan、事件和 RPC | 统一 IDL、生成绑定，以及跨语言描述符/ABI 检查（[IDL](docs/idl.md)、[ABI](docs/abi.md)） |
-| 传输队列、投递结果和资源限制 | Sensor 与 Control 配置，提供有类型的背压和饱和错误（[背压语义](docs/runtime-pressure.md)） |
-| 原生服务发现与生命周期资源处理 | Composer 绑定有类型的能力需求；每次激活的 `EffectScope` 会等待任务结束，并清理其端点和能力（[概念](docs/concepts.md)） |
-| 传输应用负载 | 可识别的时间戳、显式时钟映射，以及本地 TF 历史记录与查询（[时间](docs/time.md)、[TF](docs/tf.md)） |
-| 原生检查和运行时基础能力 | 应用图和 `rbt why` 视图，以及用于 Image、PointCloud 和 ControlCommand 的 MCAP；TF 录制/回放尚未验证（[CLI](docs/cli.md)、[MCAP](docs/mcap.md)） |
+| 原生共享内存、分配器和 slice loan | Image 与 PointCloud 使用固定头部加连续可变长载荷，容量范围内按实际长度借用，便于跨进程传递图像和点云（[消息定义](types/sensor.rbt)、[ABI](docs/abi.md)） |
+| 原生 loan/borrow | Rust/C++ 通过样本守卫管理借用与释放；Python 接收视图只读，发送前会拒绝仍有可写 NumPy 别名的 loan，将样本生命周期落实到 SDK 接口（[C++ 所有权](docs/cpp-sdk.md#data-plane-ownership)、[Python 所有权](docs/python.md#writable-aliases-and-send)） |
+| 原生多语言通信基础 | IDL 生成 Rust/C++ 消息绑定和 Python 扩展所用的 descriptor/dtype 元数据，并在打开端点前检查完整 ABI（[IDL](docs/idl.md)、[ABI](docs/abi.md)） |
+| 传输队列、投递结果和资源限制 | Sensor 队列深度为 1，满时替换最旧未读样本；Control 深度为 4，队列满返回 `QueueFull`，但可能已有其他订阅者收到样本。loan/borrow 有界，耗尽有类型错误；底层 OOM 会映射为 `LoanPoolExhausted`（[背压语义](docs/runtime-pressure.md)） |
+| 原生事件和 WaitSet | 实验性 `WaitContext` 将消息就绪、超时和激活取消纳入同一等待；空闲时阻塞，收到事件后处理消息，应用无需自行编写定时轮询循环（[事件等待](docs/waiting.md)） |
+| 服务发现与传输端点清理 | Composer 按类型绑定能力；`EffectScope` 在激活结束时取消并等待托管任务退出，清理端点和能力。关键任务异常退出会使本次激活失效；健康激活期间 Composer 暂不可用，本地数据流仍可继续（[架构](docs/architecture.md)、[组件编写](docs/component-authoring.md)） |
+| 传输应用负载 | 带时钟身份的采集时间与映射，以及消费者进程内按采集时间查询的本地 TF 历史（[时间](docs/time.md)、[TF](docs/tf.md)） |
+| 原生事件和诊断基础 | CLI 查看应用图、`rbt why` 和流压力；可安装 SDK 与脚手架支持项目创建；MCAP 支持 Image、PointCloud、ControlCommand，TF 录制/回放尚未验证（[CLI](docs/cli.md)、[背压检查](docs/pressure.md)、[快速入门](docs/quickstart.md)、[分发](docs/distribution.md)、[MCAP](docs/mcap.md)） |
+
+这些接口都有对应的现有测试场景：
+
+- **样本所有权：** [Python 发布测试](python/tests/test_publishers.py)验证仍有可写别名时拒绝发送，[接收测试](python/tests/test_image.py)验证 NumPy 视图只读。
+- **过载与等待：** [压力测试](crates/rbt-iox2/tests/pressure_semantics.rs)覆盖 loan/borrow 耗尽后恢复、快慢 Sensor 订阅者共存，以及 Control 部分订阅者收到消息后整体发送仍返回失败的情形；[WaitSet 测试](crates/rbt-iox2/tests/waitset.rs)覆盖空闲等待和取消唤醒。
+- **故障与恢复：** [组件运行时测试](crates/rbt-compose/src/component.rs)覆盖关键任务失败后的激活撤销与任务回收；[混合运行时测试](scripts/test_mixed_runtime.sh)检查 Composer 被 SIGKILL 后数据继续传输，恢复时保持 `0 deactivate, 0 activate`。
+- **跨语言与安装：** [C++ 描述符测试](sdk/cpp/tests/descriptor_tests.cpp)检查完整 ABI，[安装测试](scripts/test_install.sh)覆盖已安装 SDK 和生成应用的运行流程。
 
 负载始终走原生共享内存路径；Composer 负责图和生命周期控制，不会转发样本。当前
 维护的原生基线 iceoryx2 `0.10.0-rbt.2` 由六个[受跟踪补丁](third_party/iceoryx2-rbt/README.md)
@@ -476,4 +495,5 @@ CTest 用例，其中 4 个专门测试 TF。实体设备门禁单独执行，�
 仿真器时间、Parameters、网络网关或跨主机 TF、ROS 2 桥接、标定求解器、全局 TF 查询服务、
 schema 演进/迁移以及自适应分配器重设计均不在本次发行范围内。显式的有界 loan/borrow
 调优见[背压指南](docs/pressure.md)。基准测试结果需要同时提供记录的方法和环境元数据；
-详见[基准测试方法](docs/benchmarks.md)。
+详见[基准测试方法](docs/benchmarks.md)。GPU/DMA-BUF 端到端零拷贝和功能安全认证也尚未建立；
+上游 iceoryx2 的愿景不等于 RBT 已交付功能。
