@@ -1,33 +1,19 @@
-![RBT — 面向机器人的零拷贝运行时](docs/assets/rbt-header.svg)
+# RBT
 
-<p align="center">
-  <strong>面向机器人的多语言零拷贝运行时</strong>
-</p>
+[文档](docs/README.md) · [快速上手](#快速上手) · [示例](examples/README.md) · [性能实测](#rbt-and-ros-2-transport-measurements)
 
-<p align="center">
-  <a href="#快速上手">快速上手</a> ·
-  <a href="docs/README.md">文档</a> ·
-  <a href="examples/README.md">示例</a> ·
-  <a href="#rbt-and-ros-2-transport-measurements">性能实测</a>
-</p>
-
-RBT 为 Linux 同机多进程机器人应用提供共享内存通信、组件编排和开发工具，支持 **Rust、C++20 与 Python / NumPy**。
-数据面基于 [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2)，在此之上统一消息契约、生命周期、时间与坐标变换。
-
-应用可以直接使用 SDK 连接进程，也可以通过 Composer 声明组件依赖、绑定能力并管理生命周期。
+RBT 为机器人程序提供进程间通信和组件管理，支持 Rust、C++20 和 Python / NumPy。
+它使用 [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) 在 Linux 本机进程间通过共享内存传递数据。
 
 <a id="why-use-rbt-on-top-of-iceoryx2"></a>
 
-## 核心能力
+## 功能
 
-| 能力 | 提供什么 |
-|---|---|
-| **零拷贝数据流** | 图像、点云使用固定头部与连续可变长载荷，通过共享内存 loan / borrow 传递 |
-| **统一消息契约** | 同一份 IDL 驱动多语言绑定，端点打开时校验 ABI |
-| **组件与生命周期** | 按能力声明依赖，管理激活、取消与任务回收 |
-| **时间与坐标变换** | 带时钟身份的时间戳、显式时钟映射，以及按采集时间查询的本地 TF 历史 |
-| **运行时诊断** | 查看应用图、依赖状态和流压力，用 `rbt why` 定位组件阻塞原因 |
-| **录制与回放** | 使用 MCAP 录制、回放 Image、PointCloud 和 ControlCommand |
+- 图像和点云支持共享内存零拷贝，载荷长度可在配置容量内变化。
+- 用 IDL 定义消息，生成 Rust/C++ 绑定和 Python 元数据；通信端点打开时检查 ABI。
+- 用 Composer 绑定组件依赖、管理生命周期，也可直接使用 SDK 发布、订阅和调用 RPC。
+- 时间戳带有时钟身份，支持显式时钟映射；TF 可以按采集时间查询本地变换历史。
+- 用 CLI 查看组件状态、依赖和流压力；用 MCAP 录制、回放 Image、PointCloud、ControlCommand。
 
 ## 运行方式
 
