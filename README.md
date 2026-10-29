@@ -59,6 +59,35 @@ workspace is mixed: base, IMU, and navigation mostly use standalone RBT SDK
 endpoints and the time, TF, or cleanup facilities they need, rather than
 Composer-managed graphs.
 
+## RBT and ROS 2 transport measurements
+
+On 2026-10-29, a matched two-process experiment compared RBT SDK 0.8.0 with
+ROS 2 Lyrical / Fast DDS 3.6.2 on an Intel Core Ultra 5 125H Linux x86_64
+host. Each case used identical synthetic fixed-layout messages, payload fill
+and sparse validation, best-effort depth 1, three repetitions, a 3-second
+warmup and a 15-second measurement window. Values below are medians across
+repetitions: **combined publisher + subscriber CPU% / combined PSS MiB**.
+100% CPU means one logical core.
+
+| Workload | RBT native loan | ROS 2 SHM transport, copy | ROS 2 loan + Data Sharing |
+|---|---:|---:|---:|
+| IMU-sized: 256 B, 200 Hz | 3.00% / 7.01 | 1.60% / 35.28 | 1.40% / 35.27 |
+| Point-cloud-sized: 1.60 MB, 10 Hz | 0.27% / 8.44 | 1.20% / 96.46 | 0.60% / 39.88 |
+| Raw video-sized: 1080p RGB8, 30 Hz | 2.73% / 12.94 | 9.80% / 286.16 | 2.73% / 53.21 |
+
+All 27 trials reached the target rate with 100% delivery and no detected
+payload/sequence errors. RBT and ROS loan trials each verified eight sampled
+shared-buffer aliases; ROS loan counts matched every measured sample. RBT
+used less PSS in these configurations. CPU has no universal winner: video
+CPU was similar for both loan paths, and IMU CPU varied substantially
+(RBT 0.87–3.07%). Buffer sizing and node/runtime overhead affect these results.
+
+These are custom fixed-size messages, not standard `sensor_msgs` or a sensor
+driver/whole-robot benchmark. The standard Image, PointCloud2 and Imu loan
+capability probes returned false on this ROS installation. This is not a
+QCS8550 measurement. See the [full report, ranges and per-trial data](benchmarks/ros2_transport/results/2026-10-29/README.md)
+and [reproduction instructions](benchmarks/ros2_transport/README.md).
+
 ## Install and run the first graph
 
 The Rust-only first path needs Rust 1.89+ and a Linux x86_64 host. From a source

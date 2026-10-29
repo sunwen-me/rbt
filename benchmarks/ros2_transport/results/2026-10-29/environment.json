@@ -1,0 +1,74 @@
+{
+  "build": {
+    "c_and_cxx_flags": [
+      "-B/usr/lib/x86_64-linux-gnu/",
+      "-isystem /usr/include/x86_64-linux-gnu"
+    ],
+    "executable_and_shared_linker_flags": [
+      "-L/usr/lib/x86_64-linux-gnu",
+      "-Wl,-rpath-link,/usr/lib/x86_64-linux-gnu",
+      "-Wl,-rpath-link,/opt/ros/lyrical/lib"
+    ],
+    "language": "C++20",
+    "optimization": "-O3 -DNDEBUG",
+    "python_executable": "/usr/bin/python3",
+    "python_version": "3.13.13",
+    "sdk_build_type": "Release",
+    "sysroot": "/",
+    "type": "Release"
+  },
+  "compiler": "x86_64-conda-linux-gnu-g++ (GCC) 15.2.0",
+  "cpu_accounting_clock_ticks_per_second": 100,
+  "cpu_affinity": [
+    1,
+    6
+  ],
+  "cpu_topology": {
+    "1": {
+      "core_id": "8",
+      "governor": "powersave",
+      "thread_siblings": "1-2"
+    },
+    "6": {
+      "core_id": "20",
+      "governor": "powersave",
+      "thread_siblings": "6-7"
+    }
+  },
+  "dependency_binary_sha256": {
+    "libiceoryx2_cxx.so": "5ce1e93ce71b719106cda6f13e6afdba2d86e535d364735cce602c9b4e7512c4",
+    "libiceoryx2_ffi_c.so": "09414beb3b076beaf1b23c494d7508ca282c036e886c1d8ac29e2872c0b0e453",
+    "librbt_runtime.a": "4b9d8a3fcc6e502cfa907a80c8bebf39eba64c2c5d0546446cab9088fb59618b",
+    "standard_loan_probe": "b2011e53f68942b2376e3ff6d4cc33efb38ee74279598eb8b0cabeab0bf0726b"
+  },
+  "framework_runtime_source_revision": "9fc305e9c00ab53dd797649ea4b1b377f70a69ba",
+  "host_isolated": false,
+  "local_raw_run": "output/ros2-transport-benchmark/formal-20261029-2",
+  "measured_source_revision": "e2742798bcd1df601c05b8ab86ee8efb984b054d",
+  "native_recipe": "third_party/iceoryx2-rbt/UPSTREAM.toml and patches/series",
+  "native_upstream_commit": "135d09dd8b29f321f1725920d434864c4e512378",
+  "schema_version": 1,
+  "scope": "two standalone transport endpoint processes, excluding collector; synthetic fixed-size payloads, no sensors, no Composer",
+  "software_versions": {
+    "fastdds": "3.6.2.0",
+    "iceoryx2_rbt": "0.10.0-rbt.2",
+    "rbt_sdk": "0.8.0",
+    "rclcpp": "32.0.2",
+    "rmw_fastrtps_cpp": "9.4.9",
+    "rmw_fastrtps_shared_cpp": "9.4.9",
+    "rosidl_generator_cpp": "5.2.1",
+    "sensor_msgs": "5.9.3"
+  },
+  "standard_loan_probe": {
+    "environment": {
+      "RMW_FASTRTPS_USE_QOS_FROM_XML": "1",
+      "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
+      "ROS_AUTOMATIC_DISCOVERY_RANGE": "SYSTEM_DEFAULT",
+      "ROS_DISABLE_LOANED_MESSAGES": "0",
+      "profile": "config/shm.xml generic defaults (DataSharing OFF)"
+    },
+    "file": "standard-loan-probe.jsonl",
+    "purpose": "capability only; no sample transfer",
+    "sha256": "c1fa4e014eab9170cd958ba2241ddd10da492d63814e13fb2095bf86af7f7e01"
+  }
+}

@@ -1,0 +1,3 @@
+{"type":"sensor_msgs/Imu","publisher_can_loan":false,"subscriber_can_loan":false}
+{"type":"sensor_msgs/PointCloud2","publisher_can_loan":false,"subscriber_can_loan":false}
+{"type":"sensor_msgs/Image","publisher_can_loan":false,"subscriber_can_loan":false}

@@ -5,6 +5,16 @@ their dated results. The current SDK is v0.8.0; historical measurements below
 are not fresh v0.8 numbers. Use the [documentation index](README.md) and
 [testing guide](testing.md) for current development and verification scope.
 
+## Matched RBT / ROS 2 sensor-sized transport experiment
+
+The [optional ROS 2 transport harness](../benchmarks/ros2_transport/README.md)
+compares standalone RBT SDK endpoints with ROS 2 Fast DDS SHM-copy and
+loan + Data Sharing paths using identical synthetic fixed-size payloads.
+The [2026-10-29 report](../benchmarks/ros2_transport/results/2026-10-29/README.md)
+contains the measured CPU/PSS ranges, all 27 trial rows, loan evidence and
+standard-message capability limits. This is a Linux x86_64 host result,
+separate from the historical native transport results below.
+
 ## Current RPC and TF harnesses
 
 `./scripts/benchmark_rpc.sh --smoke` measures process-separated native RPC

@@ -6,6 +6,9 @@ use Composer, sensor drivers, physical devices, or production navigation
 components. ROS 2 is an optional benchmark dependency, not a production
 navigation dependency.
 
+The [2026-10-29 measured report](results/2026-10-29/README.md) includes all
+27 accepted trials, CPU/PSS ranges and the standard-message loan probe.
+
 ## Workload
 
 Each trial launches one publisher process and one subscriber process. Both
@@ -87,6 +90,7 @@ After building, run it with the sourced ROS environment:
 ROS_DISABLE_LOANED_MESSAGES=0 \
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
 RMW_FASTRTPS_USE_QOS_FROM_XML=1 \
+ROS_AUTOMATIC_DISCOVERY_RANGE=SYSTEM_DEFAULT \
 FASTDDS_DEFAULT_PROFILES_FILE="$PWD/benchmarks/ros2_transport/config/shm.xml" \
   "$BUILD_DIR/standard_loan_probe"
 ```
@@ -116,8 +120,7 @@ RBT and loan trials also require sampled alias evidence; loan trials require
 native loan counts to match their sample counts; copy-mode trials reject an
 observed alias. Unsupported or failed trials remain non-success statuses and
 make the run fail. Do not call a high-CPU result a winner when validity checks
-fail. This README documents the method only; measured results belong in a
-separate report after the full matrix has been reviewed.
+fail. Measured results are kept in the dated report linked above.
 
 ## Build and run
 
@@ -153,6 +156,17 @@ are available and form the intended placement. Set `--ros-setup` to
 `results.json`, `summary.csv`, per-trial
 logs, runtime metadata, QoS/profile records, resource samples, process maps,
 and alias evidence.
+
+Export portable per-trial rows and aggregates with the exact measured source
+revision (the exporter retains failures and exits nonzero for an incomplete
+or invalid matrix):
+
+```bash
+python3 benchmarks/ros2_transport/summarize.py /path/to/results.json \
+  --output /path/to/a/new-summary-directory \
+  --source-revision <measured-git-commit>
+python3 -m unittest discover -s benchmarks/ros2_transport -p 'test_*.py'
+```
 
 The current local build environment is Ubuntu 26.04 with ROS 2 Lyrical, Fast
 DDS 3.6.2, `rmw_fastrtps` 9.4.9, `rclcpp` 32.0.2, and GCC 15.2. It is not an
