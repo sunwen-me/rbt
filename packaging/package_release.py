@@ -463,7 +463,7 @@ def source_allowlist(repo: Path) -> list[str]:
     fixed = [
         "Cargo.toml", "Cargo.lock", "README.md", "PROJECT_STATUS.md", "THIRD_PARTY_NOTICES.md",
         ".gitignore", ".cargo", "crates", "sdk", "types", "generated",
-        "python", "examples", "tests", "scripts", "packaging", "docs",
+        "python", "examples", "tests", "scripts", "packaging", "docs", "benchmarks",
         "third_party/iceoryx2", "third_party/iceoryx2-rbt",
     ]
     allowed = [name for name in fixed if (repo / name).exists()]

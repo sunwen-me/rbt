@@ -1,0 +1,19 @@
+// Synthetic fixed-layout workload: identical payload bytes in RBT and ROS 2.
+package rbt.transport_bench;
+abi 1;
+
+message ImuFrame {
+    sequence: u64;
+    sent_ns: u64;
+    data: u8[256];
+}
+message CloudFrame {
+    sequence: u64;
+    sent_ns: u64;
+    data: u8[1600000];
+}
+message VideoFrame {
+    sequence: u64;
+    sent_ns: u64;
+    data: u8[6220800];
+}

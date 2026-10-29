@@ -1,0 +1,144 @@
+{
+  "idl_language_version": 1,
+  "message_descriptor_version": 1,
+  "endianness": "little",
+  "package": "rbt.transport_bench",
+  "abi_major": 1,
+  "messages": [
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.transport_bench",
+      "namespace": "rbt.transport_bench",
+      "name": "ImuFrame",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "ImuFrame",
+      "header_size": 272,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "8f252e0ef40946137a159adce8d12df5",
+      "signature": "sequence:u64@0;sent_ns:u64@8;data:[u8;256]@16;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "sent_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "data",
+          "ty": "u8[256]",
+          "offset": 16,
+          "size": 256,
+          "align": 1,
+          "array_length": 256
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.transport_bench",
+      "namespace": "rbt.transport_bench",
+      "name": "CloudFrame",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "CloudFrame",
+      "header_size": 1600016,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "893aa481940bb2c3c81ee65c77b73c68",
+      "signature": "sequence:u64@0;sent_ns:u64@8;data:[u8;1600000]@16;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "sent_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "data",
+          "ty": "u8[1600000]",
+          "offset": 16,
+          "size": 1600000,
+          "align": 1,
+          "array_length": 1600000
+        }
+      ],
+      "element_fields": []
+    },
+    {
+      "idl_language_version": 1,
+      "message_descriptor_version": 1,
+      "endianness": "little",
+      "package": "rbt.transport_bench",
+      "namespace": "rbt.transport_bench",
+      "name": "VideoFrame",
+      "abi_major": 1,
+      "shape": "fixed",
+      "header_type": "VideoFrame",
+      "header_size": 6220816,
+      "header_align": 8,
+      "element_type": null,
+      "element_size": 0,
+      "element_align": 0,
+      "layout_hash": "46337a13dbc1fa5b334bcc8476f4507f",
+      "signature": "sequence:u64@0;sent_ns:u64@8;data:[u8;6220800]@16;padding:none",
+      "header_fields": [
+        {
+          "name": "sequence",
+          "ty": "u64",
+          "offset": 0,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "sent_ns",
+          "ty": "u64",
+          "offset": 8,
+          "size": 8,
+          "align": 8,
+          "array_length": null
+        },
+        {
+          "name": "data",
+          "ty": "u8[6220800]",
+          "offset": 16,
+          "size": 6220800,
+          "align": 1,
+          "array_length": 6220800
+        }
+      ],
+      "element_fields": []
+    }
+  ]
+}

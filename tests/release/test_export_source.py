@@ -68,7 +68,7 @@ class NativeExportTests(unittest.TestCase):
             sibling = Path(temporary) / "robot-workspace"
             root.mkdir()
             sibling.mkdir()
-            for directory in ("scripts", "packaging", "tests", "docs"):
+            for directory in ("scripts", "packaging", "tests", "docs", "benchmarks"):
                 (root / directory).mkdir()
             (root / "README.md").write_text("framework source\n", encoding="utf-8")
             (root / "PROJECT_STATUS.md").write_text("# Scope\n", encoding="utf-8")
@@ -76,6 +76,14 @@ class NativeExportTests(unittest.TestCase):
             (root / "packaging/package_release.py").write_text("# packager\n", encoding="utf-8")
             (root / "tests/test_release.py").write_text("# test\n", encoding="utf-8")
             (root / "docs/README.md").write_text("# docs\n", encoding="utf-8")
+            benchmark = root / "benchmarks/ros2_transport"
+            (benchmark / "target").mkdir(parents=True)
+            (benchmark / "build").mkdir()
+            (benchmark / "README.md").write_text("# ROS 2 transport benchmark\n", encoding="utf-8")
+            (benchmark / "benchmark.cpp").write_text("// benchmark source\n", encoding="utf-8")
+            (benchmark / "run.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+            (benchmark / "target/benchmark-binary").write_text("generated binary\n", encoding="utf-8")
+            (benchmark / "build/compile_commands.json").write_text("[]\n", encoding="utf-8")
 
             (root / "drivers").symlink_to(sibling, target_is_directory=True)
             (root / "navigation").symlink_to(sibling, target_is_directory=True)
@@ -97,6 +105,10 @@ class NativeExportTests(unittest.TestCase):
 
             self.assertIn("rbt-0.8.0-source/README.md", names)
             self.assertIn("rbt-0.8.0-source/PROJECT_STATUS.md", names)
+            self.assertIn("rbt-0.8.0-source/benchmarks/ros2_transport/benchmark.cpp", names)
+            self.assertIn("rbt-0.8.0-source/benchmarks/ros2_transport/run.sh", names)
+            self.assertNotIn("rbt-0.8.0-source/benchmarks/ros2_transport/target/benchmark-binary", names)
+            self.assertNotIn("rbt-0.8.0-source/benchmarks/ros2_transport/build/compile_commands.json", names)
             for excluded in (
                 "drivers",
                 "navigation",
