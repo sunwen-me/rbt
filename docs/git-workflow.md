@@ -24,5 +24,7 @@ git commit -m "fix: describe the resulting behavior"
 git worktree add --detach ../rbt-before-split baseline/pre-split-20261029
 ```
 
-远端配置通过 `git remote -v` 查看。当前没有 `origin`，本地提交尚未推送到 GitHub。
-后续远端确定后，先核对仓库所有者和可见性，再设置地址和推送。
+框架远端是私有仓库 `https://github.com/sunwen-me/rbt.git`。推送后用
+`git status --short --branch` 检查本地分支状态，并用
+`git ls-remote origin refs/heads/main` 核对 GitHub 上可见的 `main` 引用；
+远端 `main` 的提交与本地 `main` 一致后，再确认推送完成。

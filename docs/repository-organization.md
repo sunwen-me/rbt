@@ -34,5 +34,6 @@
 
 ## Git 使用
 
-日常分支和提交约定见 [Git 工作流](git-workflow.md)。当前未配置 GitHub 远端，未上传。
+日常分支和提交约定见 [Git 工作流](git-workflow.md)。整理记录当时尚未配置 GitHub
+远端，也未上传；这是 2026-10-29 整理时的状态，不代表当前远端配置。
 本地提交使用命令级 `Codex <codex@localhost>` 作者信息；未修改用户全局 Git 配置。

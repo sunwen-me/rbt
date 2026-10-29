@@ -9,7 +9,7 @@
 | 框架构建与安装 | [开发指南](docs/development.md)、`scripts/install_v01.sh` |
 | 框架集成验证 | `scripts/verify_tf.sh --quick` / `--full`；历史结果见 [文档索引](docs/README.md) |
 | 导航、Guard、硬件驱动、机器人感知 | 独立本地仓库 `/home/sw/rbt_robot_ws`；其 `PROJECT_STATUS.md` 为机器人项目状态入口 |
-| GitHub | 当前两个仓库均为本地仓库，尚未创建/推送远端 |
+| GitHub | 框架私有仓库 [sunwen-me/rbt](https://github.com/sunwen-me/rbt)，默认分支 `main` |
 
 ## 当前版本与整理记录
 
