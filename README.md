@@ -30,6 +30,35 @@ The local robot workspace contains the Orbbec Gemini 335 and M3T integration
 guides under `../rbt_robot_ws/drivers/orbbec/` and
 `../rbt_robot_ws/perception/m3t/`.
 
+## Why use rbt on top of iceoryx2?
+
+[iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) already provides the
+native zero-copy data plane: publish/subscribe, request/response and events,
+loans, WaitSets, discovery, resource cleanup, diagnostics, and language APIs.
+RBT uses those primitives and adds shared application contracts around them.
+
+| iceoryx2 provides | RBT adds |
+|---|---|
+| Native shared-memory streams, loans, events, and RPC | One IDL with generated bindings and cross-language descriptor/ABI checks ([IDL](docs/idl.md), [ABI](docs/abi.md)) |
+| Transport queues, delivery outcomes, and resource limits | Sensor and Control profiles with typed pressure and saturation errors ([pressure semantics](docs/runtime-pressure.md)) |
+| Native service discovery and lifecycle resource handling | Composer binds typed capability requirements; each activation's `EffectScope` joins tasks and cleans up its endpoints and capabilities ([concepts](docs/concepts.md)) |
+| Transported application payloads | Identified timestamps, explicit clock mappings, and local TF history and lookup ([Time](docs/time.md), [TF](docs/tf.md)) |
+| Native inspection and runtime primitives | Application graph and `rbt why` views, plus MCAP for Image, PointCloud, and ControlCommand; TF recording/playback remains unverified ([CLI](docs/cli.md), [MCAP](docs/mcap.md)) |
+
+Payloads stay on the native shared-memory path; Composer handles graph and
+lifecycle control and never forwards samples. The maintained native baseline,
+iceoryx2 `0.10.0-rbt.2`, is reconstructed from six [tracked patches](third_party/iceoryx2-rbt/README.md).
+Those lower-level fixes can also be used directly without RBT's upper layers.
+
+RBT adds schema checks, diagnostics, an optional control plane, and maintenance
+cost. There is no matched benchmark showing RBT is faster than calling native
+iceoryx2 directly. A small application with fixed processes may prefer direct
+native APIs; a growing mixed robot system can benefit from common message,
+lifecycle, time, and TF contracts. Current adoption in the sibling robot
+workspace is mixed: base, IMU, and navigation mostly use standalone RBT SDK
+endpoints and the time, TF, or cleanup facilities they need, rather than
+Composer-managed graphs.
+
 ## Install and run the first graph
 
 The Rust-only first path needs Rust 1.89+ and a Linux x86_64 host. From a source
