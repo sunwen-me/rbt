@@ -11,6 +11,13 @@ generated message bindings, runtime diagnostics, external-consumer installation
 tests, mixed-language fault tests, soak tests, and repeatable verification and
 benchmark harnesses.
 
+This repository owns the framework core: the runtime crates, Rust/C++/Python
+SDKs, IDL and generated bindings, time and TF contracts, Composer, and the `rbt`
+CLI. See [project status](PROJECT_STATUS.md) for the current repository scope.
+Robot-specific drivers, navigation, and perception modules live in a separate
+robot workspace; in the local development layout it is the sibling checkout
+`../rbt_robot_ws/`.
+
 For a new application, start with the [quickstart](docs/quickstart.md):
 `rbt doctor` → `rbt new` → `rbt check` → `rbt run`. The generated project is
 the supported first path; the mixed Rust/C++ commands below are an advanced
@@ -19,12 +26,9 @@ reference and regression workflow.
 Contributors preparing local SDK, source, and Python wheel bundles can follow
 the [distribution guide](docs/distribution.md).
 
-The optional [Orbbec Gemini 335 driver](drivers/orbbec/README.md) connects the
-vendor SDK directly to RBT components, timestamped streams, RPC, and static TF.
-The optional [M3T tracking module](perception/m3t/README.md) consumes aligned
-RGB-D streams and tracks two articulated SO-101 models from explicit initial poses.
-It supports optional texture tracking, modeled occlusion checks, upstream YAML
-tuning, per-arm constraints, and explicit reinitialization.
+The local robot workspace contains the Orbbec Gemini 335 and M3T integration
+guides under `../rbt_robot_ws/drivers/orbbec/` and
+`../rbt_robot_ws/perception/m3t/`.
 
 ## Install and run the first graph
 

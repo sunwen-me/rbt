@@ -1,6 +1,0 @@
-nlohmann/json v3.11.3 (2023-11-28), unmodified single header.
-Source: https://github.com/nlohmann/json/releases/tag/v3.11.3
-Header: https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp
-SHA-256: 9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6
-License: MIT; see LICENSE.MIT.
-Used privately to decode bounded SO101 state JSON with null/boolean and exact integer support across OpenCV versions.

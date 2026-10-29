@@ -1,8 +1,0 @@
-cmake_minimum_required(VERSION 3.22)
-project(orbbec_ros2_perf_consumer LANGUAGES CXX)
-find_package(rclcpp REQUIRED)
-find_package(sensor_msgs REQUIRED)
-add_executable(ros2-perf-consumer ../ros2_consumer.cpp)
-target_compile_features(ros2-perf-consumer PRIVATE cxx_std_20)
-target_compile_options(ros2-perf-consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)
-target_link_libraries(ros2-perf-consumer PRIVATE rclcpp::rclcpp sensor_msgs::sensor_msgs_library)

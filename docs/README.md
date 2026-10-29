@@ -5,6 +5,11 @@ real-hardware applications in Rust, C++20, and Python. Start with the path that
 matches your work; the milestone reports below retain the versions and results
 of their original runs.
 
+This repository covers the framework runtime, SDKs, IDL, time and TF APIs, and
+Composer/CLI. Robot-specific drivers, navigation, and perception live in the
+separate robot workspace, at `../rbt_robot_ws/` from the repository root in the
+local development layout.
+
 ## Build an application
 
 1. Follow the [quickstart](quickstart.md) to install the tools, generate a
@@ -41,10 +46,9 @@ verification. The [distribution guide](distribution.md) covers local SDK,
 source, and Python wheel bundles. [Testing](testing.md) describes gate scope and
 retained evidence; [benchmarks](benchmarks.md) explains measurement methods.
 
-The optional [Orbbec Gemini 335 driver](../drivers/orbbec/README.md) has its own
-build instructions, camera contracts, and focused software verification.
-The optional [M3T module](../perception/m3t/README.md) documents aligned RGB-D
-input, SO-101 model conversion, two-arm initialization, and tracking output.
+The local robot workspace contains the Orbbec Gemini 335 and M3T integration
+guides under `../rbt_robot_ws/drivers/orbbec/` and
+`../rbt_robot_ws/perception/m3t/`.
 
 The native baseline is the maintained **iceoryx2 0.10.0-rbt.2** source, shared by
 Rust, C++, and Python. See its [build and provenance guide](../third_party/iceoryx2-rbt/README.md)

@@ -1,2 +1,0 @@
-# Root crash-dump rule core.* must not hide the frame codec source.
-!src/core.cpp

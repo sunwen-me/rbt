@@ -88,3 +88,12 @@ Thumbs.db
 
 # Small canonical recording fixtures are source-controlled test inputs.
 !/tests/fixtures/mcap/*.mcap
+
+# Local compatibility links to the independently versioned robot workspace.
+/navigation
+/drivers
+/perception
+/scripts/package_addons_source.sh
+/packaging/package_addons_source.py
+/packaging/addons
+/tests/test_consume.py

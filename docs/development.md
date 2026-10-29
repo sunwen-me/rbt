@@ -5,6 +5,13 @@ start with the [quickstart](quickstart.md) and [component authoring](component-a
 The [documentation index](README.md) links all maintained guides and retained
 milestone evidence.
 
+This repository owns the framework runtime, Rust/C++/Python SDKs, IDL and
+generated bindings, time and TF APIs, Composer, and the `rbt` CLI. Robot-specific
+drivers, navigation, and perception are maintained in the separate robot
+workspace, located at `../rbt_robot_ws/` beside this checkout in the local
+development layout. Local compatibility links to that workspace are ignored
+and are not part of framework source releases.
+
 ## Repository map
 
 | Path | Responsibility |
@@ -20,7 +27,6 @@ milestone evidence.
 | `crates/rbt-python`, `python/rbt`, `python/tests` | PyO3 extension, Python API/type stubs, and Python tests |
 | `types`, `generated` | Canonical production schemas and generated Rust/C++/descriptor artifacts |
 | `examples`, `tests` | Learning examples, external consumers, and regression fixtures |
-| `drivers/orbbec` | Optional Gemini 335 component, vendor SDK bootstrap, camera consumers, and focused tests |
 | `scripts`, `packaging` | Build/provenance checks, installation, verification gates, and staged SDK metadata |
 | `third_party/iceoryx2-rbt` | Maintained native patch series and immutable source fingerprints |
 | `target` | Local builds, reconstructed dependencies, logs, and run evidence |

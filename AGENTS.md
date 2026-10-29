@@ -1,5 +1,14 @@
 # Multi-Agent Orchestration Policy
 
+## Repository scope
+
+This repository owns the generic RBT framework and SDK. Robot drivers,
+navigation, perception, and deployment records are maintained in the sibling
+`../rbt_robot_ws` repository. Consult `PROJECT_STATUS.md` and
+`docs/repository-organization.md` before changing repository boundaries.
+Local compatibility symlinks into that workspace are ignored and must not be
+added to framework commits or source releases.
+
 This repository uses `gpt-6.1-sol` at `xhigh` reasoning effort as the primary orchestrator and `gpt-6-luna` at `max` reasoning effort for execution-oriented subagents.
 
 ## Sol owns decisions and acceptance

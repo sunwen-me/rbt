@@ -368,7 +368,8 @@ def collect_tree(
         if not start.exists() and not start.is_symlink():
             continue
         if start.is_symlink():
-            add(start)
+            if not filter_generated or is_within(start, root):
+                add(start)
             continue
         if start.is_file():
             add(start)
@@ -385,6 +386,8 @@ def collect_tree(
             directory = stack.pop()
             for path in sorted(directory.iterdir(), key=lambda item: item.name):
                 if filter_generated and should_exclude(path):
+                    continue
+                if filter_generated and path.is_symlink() and not is_within(path, root):
                     continue
                 mode = path.lstat().st_mode
                 if stat.S_ISDIR(mode):
@@ -458,9 +461,9 @@ def deterministic_tar(
 
 def source_allowlist(repo: Path) -> list[str]:
     fixed = [
-        "Cargo.toml", "Cargo.lock", "README.md", "THIRD_PARTY_NOTICES.md",
+        "Cargo.toml", "Cargo.lock", "README.md", "PROJECT_STATUS.md", "THIRD_PARTY_NOTICES.md",
         ".gitignore", ".cargo", "crates", "sdk", "types", "generated",
-        "python", "examples", "tests", "scripts", "packaging", "docs", "drivers",
+        "python", "examples", "tests", "scripts", "packaging", "docs",
         "third_party/iceoryx2", "third_party/iceoryx2-rbt",
     ]
     allowed = [name for name in fixed if (repo / name).exists()]
