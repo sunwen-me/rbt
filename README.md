@@ -69,6 +69,13 @@ warmup and a 15-second measurement window. Values below are medians across
 repetitions: **combined publisher + subscriber CPU% / combined PSS MiB**.
 100% CPU means one logical core.
 
+Bars show medians, dots show all three trials, and whiskers show the observed
+min–max range. Both charts use linear axes starting at zero.
+
+![Combined publisher and subscriber CPU usage across three trials](benchmarks/ros2_transport/results/2026-10-29/cpu-usage.svg)
+
+![Combined publisher and subscriber proportional memory across three trials](benchmarks/ros2_transport/results/2026-10-29/memory-pss.svg)
+
 | Workload | RBT native loan | ROS 2 SHM transport, copy | ROS 2 loan + Data Sharing |
 |---|---:|---:|---:|
 | IMU-sized: 256 B, 200 Hz | 3.00% / 7.01 | 1.60% / 35.28 | 1.40% / 35.27 |

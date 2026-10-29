@@ -41,6 +41,15 @@ column is the highest sampled total PSS among the three trials, not an
 instrumented allocation peak. RSS is retained in the CSV and may count
 shared pages more than once.
 
+Bars show medians, dots show each of the three trials, and whiskers show the
+observed min–max range, rather than confidence intervals. Both axes are
+linear and start at zero. Memory shows per-trial median PSS, not sampled peak
+memory. The charts are generated from the retained JSON/CSV data.
+
+![Combined publisher and subscriber CPU usage](cpu-usage.svg)
+
+![Combined publisher and subscriber median proportional memory](memory-pss.svg)
+
 | Workload | Path | CPU % | Total PSS MiB | Sampled peak PSS MiB |
 |---|---|---:|---:|---:|
 | 256 B IMU-sized, 200 Hz | RBT loan | 3.00 [0.87–3.07] | 7.01 [6.97–7.09] | 7.11 |
@@ -118,6 +127,7 @@ data plane beneath RBT is provided by iceoryx2.
 - [Portable aggregate and verification metadata](summary.json): medians/ranges, binary/profile SHA-256, observed transport/loan settings and source revision.
 - [Build and software provenance](environment.json).
 - [Standard ROS message loan capability output](standard-loan-probe.jsonl).
+- CPU chart: [SVG](cpu-usage.svg), [PNG](cpu-usage.png); memory chart: [SVG](memory-pss.svg), [PNG](memory-pss.png).
 
 The accepted raw run is `output/ros2-transport-benchmark/formal-20261029-2/`
 in the local checkout. It retains endpoint logs, per-trial XML, resource

@@ -176,3 +176,19 @@ ARM or robot-hardware measurement. The ignored local script
 specific to that host, not required by the portable command above. Results
 from this setup must not be presented as performance claims for deployed
 hardware.
+
+## Regenerate the report charts
+
+Plotting uses optional Matplotlib; it is not a benchmark or runtime dependency.
+The retained charts were rendered with Matplotlib 3.11.2.
+The script reads `summary.json` and `trials.csv`, checks that the aggregates
+match all three repetitions, and generates CPU and PSS charts as SVG and PNG.
+Bars show medians, dots show individual trials and whiskers show min–max
+ranges. Axes are linear and start at zero.
+
+```bash
+python3 -m venv target/ros2-transport-benchmark/plot-venv
+target/ros2-transport-benchmark/plot-venv/bin/python -m pip install matplotlib==3.11.2
+target/ros2-transport-benchmark/plot-venv/bin/python benchmarks/ros2_transport/plot.py \
+  --results-dir benchmarks/ros2_transport/results/2026-10-29
+```
