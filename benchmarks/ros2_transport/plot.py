@@ -25,7 +25,25 @@ CASE_LABELS = {
     "cloud": "Cloud\n1.60 MB · 10 Hz",
     "video": "Video\n1080p RGB8 · 30 Hz",
 }
+ZH_LABELS = {
+    "rbt": "RBT 原生 loan",
+    "shm": "ROS 2 SHM 复制",
+    "loan": "ROS 2 loan + Data Sharing",
+}
+ZH_CASE_LABELS = {
+    "imu": "IMU\n256 B · 200 Hz",
+    "cloud": "点云\n1.60 MB · 10 Hz",
+    "video": "视频\n1080p RGB8 · 30 Hz",
+}
 DEFAULT_RESULTS = Path(__file__).resolve().parent / "results" / "2026-10-29"
+CJK_FONT_CANDIDATES = (
+    "Noto Sans CJK SC",
+    "Noto Sans CJK JP",
+    "Noto Sans CJK TC",
+    "Noto Sans CJK",
+    "Source Han Sans SC",
+    "WenQuanYi Micro Hei",
+)
 
 
 class DataError(ValueError):
@@ -98,8 +116,39 @@ def validate(summary, trials):
 
 
 def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str,
-           stem: str, divisor: float = 1.0) -> None:
-    plt.rcParams.update({"svg.fonttype": "none", "svg.hashsalt": "rbt-transport-2026-10-29"})
+           stem: str, divisor: float = 1.0, language: str = "en",
+           font_family: str | None = None) -> None:
+    if language == "zh":
+        plt.rcParams.update({
+            "svg.fonttype": "path",
+            "svg.hashsalt": "rbt-transport-2026-10-29",
+            "font.family": [font_family] if font_family else ["sans-serif"],
+        })
+        labels = ZH_LABELS
+        case_labels = ZH_CASE_LABELS
+        trial_label = "每轮实测"
+        range_label = "最小—最大范围（非置信区间）"
+        trial_note = "柱：3 轮实测的中位数；点：每轮实测；须线：观察到的最小—最大范围（非置信区间）。"
+        scope_note = (
+            "发布端与接收端分别运行在两个独立进程中；双方均使用自定义固定布局合成消息 · "
+            "x86_64 · 展示发布端与接收端合计指标 · 标准 sensor_msgs：仅做能力探测，不测性能。"
+        )
+    else:
+        plt.rcParams.update({
+            "svg.fonttype": "none",
+            "svg.hashsalt": "rbt-transport-2026-10-29",
+        })
+        labels = LABELS
+        case_labels = CASE_LABELS
+        trial_label = "Individual trial"
+        range_label = "Observed min–max (not CI)"
+        trial_note = (
+            "Bars: medians across 3 trials; dots: each trial; whiskers: observed min–max range (not confidence intervals)."
+        )
+        scope_note = (
+            "Custom fixed-layout synthetic messages on both stacks · x86_64 · combined publisher + subscriber · "
+            "standard sensor_msgs: capability probe only, not performance-measured."
+        )
     fig, ax = plt.subplots(figsize=(14, 7.2), facecolor="white")
     fig.subplots_adjust(left=0.085, right=0.985, top=0.82, bottom=0.24)
     fig.suptitle(title, fontsize=19, fontweight="bold", y=0.965)
@@ -120,15 +169,18 @@ def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str
             ax.text(x, high_value + max(high_value, 1.0) * 0.018, f"{median:.2f}",
                     ha="center", va="bottom", fontsize=9, color="#202a33", zorder=6)
 
-    handles = [Patch(facecolor=COLORS[m], label=LABELS[m]) for m in MODES]
+    handles = [Patch(facecolor=COLORS[m], label=labels[m]) for m in MODES]
     handles.extend([
-        Line2D([], [], marker="o", linestyle="none", markersize=5, color="#25313c", label="Individual trial"),
-        Line2D([], [], color="#25313c", marker="_", markersize=9, label="Observed min–max (not CI)"),
+        Line2D([], [], marker="o", linestyle="none", markersize=5, color="#25313c", label=trial_label),
+        Line2D([], [], color="#25313c", marker="_", markersize=9, label=range_label),
     ])
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.89), ncol=5,
                frameon=False, fontsize=9.5, columnspacing=1.45, handlelength=1.35)
-    ax.set_xticks(list(centers), [CASE_LABELS[case] for case in CASES], fontsize=11)
-    ax.set_ylabel(ylabel, fontsize=11)
+    ax.set_xticks(list(centers), [case_labels[case] for case in CASES], fontsize=11)
+    if language == "zh":
+        ax.set_ylabel(ylabel, fontsize=11, linespacing=1.6)
+    else:
+        ax.set_ylabel(ylabel, fontsize=11)
     ax.set_xlim(-0.58, len(CASES) - 0.42)
     ax.set_ylim(0, high * 1.16 + 0.02)
     ax.set_axisbelow(True)
@@ -139,12 +191,8 @@ def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str
         ax.spines[side].set_color("#aab3bc")
     ax.tick_params(axis="y", labelsize=9.5, colors="#38434e")
     ax.tick_params(axis="x", length=0, pad=9, colors="#202a33")
-    fig.text(0.085, 0.145,
-             "Bars: medians across 3 trials; dots: each trial; whiskers: observed min–max range (not confidence intervals).",
-             fontsize=9, color="#35414c")
-    fig.text(0.085, 0.085,
-             "Custom fixed-layout synthetic messages on both stacks · x86_64 · combined publisher + subscriber · standard sensor_msgs: capability probe only, not performance-measured.",
-             fontsize=8.7, color="#35414c")
+    fig.text(0.085, 0.145, trial_note, fontsize=9, color="#35414c")
+    fig.text(0.085, 0.085, scope_note, fontsize=8.7, color="#35414c")
     fig.savefig(directory / f"{stem}.png", dpi=100, facecolor="white", metadata={"Software": "Matplotlib"})
     fig.savefig(directory / f"{stem}.svg", format="svg", facecolor="white",
                  metadata={"Date": None, "Title": title, "Creator": "benchmarks/ros2_transport/plot.py"})
@@ -154,10 +202,28 @@ def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str
     plt.close(fig)
 
 
+def find_cjk_font(font_manager) -> str:
+    for family in CJK_FONT_CANDIDATES:
+        try:
+            font_manager.findfont(
+                font_manager.FontProperties(family=family),
+                fallback_to_default=False,
+            )
+            return family
+        except ValueError:
+            continue
+    raise DataError(
+        "Chinese plotting requires a CJK font; install Noto Sans CJK SC/JP/TC, "
+        "Source Han Sans SC, or WenQuanYi Micro Hei"
+    )
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS,
                         help="directory with summary.json and trials.csv; outputs go here")
+    parser.add_argument("--language", choices=("en", "zh"), default="en",
+                        help="chart language (default: en)")
     args = parser.parse_args(argv)
     try:
         summary, trials = load_results(args.results_dir)
@@ -168,20 +234,39 @@ def main(argv=None) -> int:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from matplotlib import font_manager
         from matplotlib.lines import Line2D
         from matplotlib.patches import Patch
     except ImportError as exc:
         parser.error(f"Matplotlib is required only for plotting: {exc}")
 
+    font_family = None
+    if args.language == "zh":
+        try:
+            font_family = find_cjk_font(font_manager)
+        except DataError as exc:
+            parser.error(str(exc))
+    suffix = "-zh" if args.language == "zh" else ""
+    if args.language == "zh":
+        cpu_title = "跨进程通信 CPU 占用"
+        memory_title = "跨进程通信内存占用（PSS）"
+        cpu_ylabel = "发布端与接收端合计 CPU（%）\n100% = 一个逻辑核心"
+        memory_ylabel = "发布端与接收端合计 PSS（MiB）"
+    else:
+        cpu_title = "Transport endpoint CPU usage"
+        memory_title = "Transport endpoint memory (PSS)"
+        cpu_ylabel = "Combined publisher + subscriber CPU (%)\n100% = one logical core"
+        memory_ylabel = "Combined publisher + subscriber PSS (MiB)"
     render(plt, Line2D, Patch, args.results_dir, data["total_cpu_percent"],
-           title="Transport endpoint CPU usage",
-           ylabel="Combined publisher + subscriber CPU (%)\n100% = one logical core",
-           stem="cpu-usage")
+           title=cpu_title, ylabel=cpu_ylabel, stem=f"cpu-usage{suffix}",
+           language=args.language, font_family=font_family)
     render(plt, Line2D, Patch, args.results_dir, data["median_total_pss_kib"],
-           title="Transport endpoint memory (PSS)",
-           ylabel="Combined publisher + subscriber PSS (MiB)",
-           stem="memory-pss", divisor=1024.0)
-    print(f"Wrote CPU and PSS charts to {args.results_dir}")
+           title=memory_title, ylabel=memory_ylabel, stem=f"memory-pss{suffix}",
+           divisor=1024.0, language=args.language, font_family=font_family)
+    if args.language == "zh":
+        print(f"已写入 CPU 与 PSS 图表：{args.results_dir}")
+    else:
+        print(f"Wrote CPU and PSS charts to {args.results_dir}")
     return 0
 
 

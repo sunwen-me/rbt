@@ -1,123 +1,107 @@
 # rbt
 
-`rbt` is a zero-copy, capability-oriented robot runtime built on iceoryx2.
-The Composer decides what should run; typed payloads move directly between
-component processes through shared memory. The Composer is never in the
-payload path.
+`rbt` 是基于 iceoryx2 构建的零拷贝、面向能力的机器人运行时。
+Composer（编排器）决定运行哪些组件；带类型的数据负载通过共享内存在组件进程之间直接传递。
+Composer 不会进入负载传输路径。
 
-This repository is the installable v0.8 real-hardware runtime and SDK for Rust, C++20,
-and CPython/NumPy publishers and consumers. It includes lifecycle runtimes,
-generated message bindings, runtime diagnostics, external-consumer installation
-tests, mixed-language fault tests, soak tests, and repeatable verification and
-benchmark harnesses.
+本仓库提供可安装的 v0.8 实机运行时，以及面向 Rust、C++20 和 CPython/NumPy
+发布者与订阅者的 SDK。仓库包含生命周期运行时、生成的消息绑定、运行时诊断、
+外部消费者安装测试、多语言故障测试、长时间稳定性测试，以及可重复执行的验证
+和基准测试工具。
 
-This repository owns the framework core: the runtime crates, Rust/C++/Python
-SDKs, IDL and generated bindings, time and TF contracts, Composer, and the `rbt`
-CLI. See [project status](PROJECT_STATUS.md) for the current repository scope.
-Robot-specific drivers, navigation, and perception modules live in a separate
-robot workspace; in the local development layout it is the sibling checkout
-`../rbt_robot_ws/`.
+本仓库负责框架核心：运行时 crate、Rust/C++/Python SDK、IDL 与生成绑定、时间和
+TF 契约、Composer，以及 `rbt` CLI。当前仓库范围见[项目状态](PROJECT_STATUS.md)。
+机器人专用的驱动、导航和感知模块位于独立的机器人工作区；本地开发布局中，
+该工作区是相邻检出目录 `../rbt_robot_ws/`。
 
-For a new application, start with the [quickstart](docs/quickstart.md):
-`rbt doctor` → `rbt new` → `rbt check` → `rbt run`. The generated project is
-the supported first path; the mixed Rust/C++ commands below are an advanced
-reference and regression workflow.
+开发新应用时，请从[快速入门](docs/quickstart.md)开始：
+`rbt doctor` → `rbt new` → `rbt check` → `rbt run`。由工具生成项目是受支持的入门
+路径；下方的 Rust/C++ 混合命令属于进阶参考和回归工作流。
 
-Contributors preparing local SDK, source, and Python wheel bundles can follow
-the [distribution guide](docs/distribution.md).
+准备本地 SDK、源码和 Python wheel 包的贡献者可参考[分发指南](docs/distribution.md)。
 
-The local robot workspace contains the Orbbec Gemini 335 and M3T integration
-guides under `../rbt_robot_ws/drivers/orbbec/` and
-`../rbt_robot_ws/perception/m3t/`.
+本地机器人工作区中的 Orbbec Gemini 335 和 M3T 集成指南位于
+`../rbt_robot_ws/drivers/orbbec/` 和 `../rbt_robot_ws/perception/m3t/`。
 
-## Why use rbt on top of iceoryx2?
+<a id="why-use-rbt-on-top-of-iceoryx2"></a>
 
-[iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) already provides the
-native zero-copy data plane: publish/subscribe, request/response and events,
-loans, WaitSets, discovery, resource cleanup, diagnostics, and language APIs.
-RBT uses those primitives and adds shared application contracts around them.
+## 为什么在 iceoryx2 之上使用 rbt？
 
-| iceoryx2 provides | RBT adds |
+[iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) 已经提供原生零拷贝数据平面：
+发布/订阅、请求/响应与事件、loan、WaitSet、发现、资源清理、诊断和多语言 API。
+RBT 使用这些基础能力，并在其上增加应用间共享的契约。
+
+| iceoryx2 提供 | RBT 增加 |
 |---|---|
-| Native shared-memory streams, loans, events, and RPC | One IDL with generated bindings and cross-language descriptor/ABI checks ([IDL](docs/idl.md), [ABI](docs/abi.md)) |
-| Transport queues, delivery outcomes, and resource limits | Sensor and Control profiles with typed pressure and saturation errors ([pressure semantics](docs/runtime-pressure.md)) |
-| Native service discovery and lifecycle resource handling | Composer binds typed capability requirements; each activation's `EffectScope` joins tasks and cleans up its endpoints and capabilities ([concepts](docs/concepts.md)) |
-| Transported application payloads | Identified timestamps, explicit clock mappings, and local TF history and lookup ([Time](docs/time.md), [TF](docs/tf.md)) |
-| Native inspection and runtime primitives | Application graph and `rbt why` views, plus MCAP for Image, PointCloud, and ControlCommand; TF recording/playback remains unverified ([CLI](docs/cli.md), [MCAP](docs/mcap.md)) |
+| 原生共享内存流、loan、事件和 RPC | 统一 IDL、生成绑定，以及跨语言描述符/ABI 检查（[IDL](docs/idl.md)、[ABI](docs/abi.md)） |
+| 传输队列、投递结果和资源限制 | Sensor 与 Control 配置，提供有类型的背压和饱和错误（[背压语义](docs/runtime-pressure.md)） |
+| 原生服务发现与生命周期资源处理 | Composer 绑定有类型的能力需求；每次激活的 `EffectScope` 会等待任务结束，并清理其端点和能力（[概念](docs/concepts.md)） |
+| 传输应用负载 | 可识别的时间戳、显式时钟映射，以及本地 TF 历史记录与查询（[时间](docs/time.md)、[TF](docs/tf.md)） |
+| 原生检查和运行时基础能力 | 应用图和 `rbt why` 视图，以及用于 Image、PointCloud 和 ControlCommand 的 MCAP；TF 录制/回放尚未验证（[CLI](docs/cli.md)、[MCAP](docs/mcap.md)） |
 
-Payloads stay on the native shared-memory path; Composer handles graph and
-lifecycle control and never forwards samples. The maintained native baseline,
-iceoryx2 `0.10.0-rbt.2`, is reconstructed from six [tracked patches](third_party/iceoryx2-rbt/README.md).
-Those lower-level fixes can also be used directly without RBT's upper layers.
+负载始终走原生共享内存路径；Composer 负责图和生命周期控制，不会转发样本。当前
+维护的原生基线 iceoryx2 `0.10.0-rbt.2` 由六个[受跟踪补丁](third_party/iceoryx2-rbt/README.md)
+重建。这些底层修复也可以脱离 RBT 上层直接使用。
 
-RBT adds schema checks, diagnostics, an optional control plane, and maintenance
-cost. There is no matched benchmark showing RBT is faster than calling native
-iceoryx2 directly. A small application with fixed processes may prefer direct
-native APIs; a growing mixed robot system can benefit from common message,
-lifecycle, time, and TF contracts. Current adoption in the sibling robot
-workspace is mixed: base, IMU, and navigation mostly use standalone RBT SDK
-endpoints and the time, TF, or cleanup facilities they need, rather than
-Composer-managed graphs.
+RBT 增加了消息结构检查、诊断、可选控制平面和维护成本。目前没有同条件基准测试证明
+RBT 比直接调用原生 iceoryx2 更快。进程固定的小型应用可能更适合直接使用原生 API；
+不断扩展的混合机器人系统则可从统一的消息、生命周期、时间和 TF 契约中受益。相邻
+机器人工作区目前混合采用这些能力：底盘、IMU 和导航主要使用独立的 RBT SDK 端点，
+并按需使用时间、TF 或清理机制，而不是由 Composer 管理应用图。
 
-## RBT and ROS 2 transport measurements
+<a id="rbt-and-ros-2-transport-measurements"></a>
 
-On 2026-10-29, a matched two-process experiment compared RBT SDK 0.8.0 with
-ROS 2 Lyrical / Fast DDS 3.6.2 on an Intel Core Ultra 5 125H Linux x86_64
-host. Each case used identical synthetic fixed-layout messages, payload fill
-and sparse validation, best-effort depth 1, three repetitions, a 3-second
-warmup and a 15-second measurement window. Values below are medians across
-repetitions: **combined publisher + subscriber CPU% / combined PSS MiB**.
-100% CPU means one logical core.
+## RBT 与 ROS 2 跨进程通信实测
 
-Bars show medians, dots show all three trials, and whiskers show the observed
-min–max range. Both charts use linear axes starting at zero.
+2026-10-29 进行的同条件双进程实验比较了 RBT SDK 0.8.0 与 ROS 2 Lyrical / Fast DDS 3.6.2，
+测试主机为 Intel Core Ultra 5 125H Linux x86_64。发布者和订阅者运行在两个独立进程中。
+每个用例使用相同的合成固定布局消息、负载填充和稀疏校验，尽力而为 QoS、队列深度 1，
+每种配置重复三次，预热 3 秒，测量 15 秒。下表为重复试验的中位数：**发布者与订阅者
+CPU 合计百分比 / PSS 合计 MiB**。CPU 100% 表示占用一个逻辑核心。
 
-![Combined publisher and subscriber CPU usage across three trials](benchmarks/ros2_transport/results/2026-10-29/cpu-usage.svg)
+柱形表示中位数，圆点表示全部三次试验，误差线表示观测到的最小值至最大值范围。
+两张图均使用从零开始的线性坐标轴。
 
-![Combined publisher and subscriber proportional memory across three trials](benchmarks/ros2_transport/results/2026-10-29/memory-pss.svg)
+![三轮试验中发布端与接收端的合计 CPU 占用](benchmarks/ros2_transport/results/2026-10-29/cpu-usage-zh.svg)
 
-| Workload | RBT native loan | ROS 2 SHM transport, copy | ROS 2 loan + Data Sharing |
+![三轮试验中发布端与接收端的合计 PSS 内存占用](benchmarks/ros2_transport/results/2026-10-29/memory-pss-zh.svg)
+
+| 工作负载 | RBT 原生 loan | ROS 2 SHM 传输（拷贝） | ROS 2 loan + Data Sharing |
 |---|---:|---:|---:|
-| IMU-sized: 256 B, 200 Hz | 3.00% / 7.01 | 1.60% / 35.28 | 1.40% / 35.27 |
-| Point-cloud-sized: 1.60 MB, 10 Hz | 0.27% / 8.44 | 1.20% / 96.46 | 0.60% / 39.88 |
-| Raw video-sized: 1080p RGB8, 30 Hz | 2.73% / 12.94 | 9.80% / 286.16 | 2.73% / 53.21 |
+| IMU 尺寸：256 B，200 Hz | 3.00% / 7.01 | 1.60% / 35.28 | 1.40% / 35.27 |
+| 点云尺寸：1.60 MB，10 Hz | 0.27% / 8.44 | 1.20% / 96.46 | 0.60% / 39.88 |
+| 原始视频尺寸：1080p RGB8，30 Hz | 2.73% / 12.94 | 9.80% / 286.16 | 2.73% / 53.21 |
 
-All 27 trials reached the target rate with 100% delivery and no detected
-payload/sequence errors. RBT and ROS loan trials each verified eight sampled
-shared-buffer aliases; ROS loan counts matched every measured sample. RBT
-used less PSS in these configurations. CPU has no universal winner: video
-CPU was similar for both loan paths, and IMU CPU varied substantially
-(RBT 0.87–3.07%). Buffer sizing and node/runtime overhead affect these results.
+全部 27 次试验均达到目标速率，投递率为 100%，未检测到负载或序号错误。RBT 和 ROS
+loan 的每轮试验都验证了八组序号匹配的共享缓冲区映射；ROS loan 计数与实测收发样本数一致。
+在这些配置中，RBT 的 PSS 更低。CPU 结果因场景而异：两条 loan 路径的视频 CPU
+使用率相近，而 IMU 的 CPU 使用率波动较大（RBT 为 0.87–3.07%）。缓冲区大小以及
+节点和运行时开销都会影响这些结果。
 
-These are custom fixed-size messages, not standard `sensor_msgs` or a sensor
-driver/whole-robot benchmark. The standard Image, PointCloud2 and Imu loan
-capability probes returned false on this ROS installation. This is not a
-QCS8550 measurement. See the [full report, ranges and per-trial data](benchmarks/ros2_transport/results/2026-10-29/README.md)
-and [reproduction instructions](benchmarks/ros2_transport/README.md).
+本测试使用自定义定长消息，不是标准 `sensor_msgs` 测试，也不是传感器驱动或整机基准
+测试。在此 ROS 安装中，对标准 Image、PointCloud2 和 Imu 的 loan 能力探测均返回 false。
+这不是 QCS8550 测量结果。详情、取值范围和逐次试验数据见[完整报告](benchmarks/ros2_transport/results/2026-10-29/README.md)，
+复现方法见[操作说明](benchmarks/ros2_transport/README.md)。
 
-**RBT's practical advantage for native cross-process sensor transport:** its existing
-[`Image` and `PointCloud` schemas](types/sensor.rbt) support contiguous,
-variable-length payloads within a configured capacity, with direct
-[loan/receive access](docs/cpp-sdk.md#data-plane-ownership). Applications can
-use these native sensor contracts on the iceoryx2 shared-memory path, while
-standard `sensor_msgs` lack native loan support in the tested ROS 2/Fast DDS
-configuration. RBT's schemas have their own layout; driver or format
-conversion may still copy data. The performance table uses matched custom
-messages on both stacks; standard-message CPU/memory was not measured.
+**RBT 在跨进程原生传感器传输方面的实用优势：** 现有的
+[`Image` 和 `PointCloud` schema](types/sensor.rbt) 支持在配置容量内传输连续的
+可变长度负载，并可直接[借用和接收](docs/cpp-sdk.md#data-plane-ownership)。应用可在
+iceoryx2 共享内存路径上使用这些原生传感器契约；在本次测试的 ROS 2/Fast DDS 配置中，
+标准 `sensor_msgs` 不支持原生 loan。RBT schema 有自己的布局；驱动或格式转换仍可能
+拷贝数据。性能表比较的是两套栈上的匹配自定义消息；没有测量标准消息的 CPU 或内存。
 
-ROS 2 also supports **intra-process zero-copy**: compatible nodes in the same
-process can transfer message ownership through `rclcpp`, including standard
-sensor messages, without native DDS loans ([official image example](https://github.com/ros2/demos/blob/lyrical/intra_process_demo/include/image_pipeline/camera_node.hpp)).
-That path depends on the publish/subscription ownership pattern and graph.
-The two-process benchmark above explicitly disables `use_intra_process_comms`
-and does not measure this deployment. A false middleware `can_loan` result
-does not rule out ROS 2 intra-process zero-copy.
+ROS 2 也支持**进程内零拷贝**：同一进程中的兼容节点可以通过 `rclcpp` 转移消息所有权，
+包括标准传感器消息，而无需原生 DDS loan（[官方图像示例](https://github.com/ros2/demos/blob/lyrical/intra_process_demo/include/image_pipeline/camera_node.hpp)）。
+这条路径取决于发布/订阅的所有权模式和图结构。上方双进程基准测试显式禁用了
+`use_intra_process_comms`，没有测量这种部署方式。中间件的 `can_loan` 返回 false，
+并不能排除 ROS 2 进程内零拷贝。
 
-## Install and run the first graph
+<a id="install-and-run-the-first-graph"></a>
 
-The Rust-only first path needs Rust 1.89+ and a Linux x86_64 host. From a source
-checkout, build only the three tools used by the generated graph, select this
-checkout as the SDK, and let the doctor verify the environment:
+## 安装并运行第一个应用图
+
+仅使用 Rust 的入门路径需要 Rust 1.89+ 和 Linux x86_64 主机。从源码检出目录开始，先构建
+生成的应用图所需的三个工具，将此检出目录设为 SDK，再运行 doctor 检查环境：
 
 ```bash
 ./scripts/bootstrap_iceoryx2_rbt.sh --source-only
@@ -127,12 +111,10 @@ export RBT_RUST_SDK="$PWD"
 rbt doctor
 ```
 
-An installed release provides the same three executables and its installed
-Rust SDK, so no environment variable is needed. C++, Python, and NumPy are not
-prerequisites for this first graph; the full mixed-language installation is
-covered below and in [installation testing](docs/testing.md).
+已安装的发行版会提供相同的三个可执行文件和配套 Rust SDK，因此无需设置环境变量。
+运行第一个应用图不需要 C++、Python 或 NumPy；完整的多语言安装流程见下文和[安装测试](docs/testing.md)。
 
-Create and run a real project outside this checkout:
+在当前检出目录之外创建并运行一个实际项目：
 
 ```bash
 mkdir -p /tmp/rbt-work
@@ -143,59 +125,56 @@ rbt check
 rbt run
 ```
 
-The generated source and sink become `ACTIVE` and print `HELLO` samples. In a
-second terminal, use `rbt ps`, `rbt graph`, and `rbt why hello-sink`; press
-Ctrl-C in the launcher terminal to stop and reap the graph. See the
-[quickstart](docs/quickstart.md) for message/component creation, provider
-replacement, stream pressure, and MCAP record/replay. The
-[project-layout guide](docs/project-layout.md) and
-[component-authoring guide](docs/component-authoring.md) are the next normal
-steps.
+生成的源组件和接收组件会进入 `ACTIVE` 状态并打印 `HELLO` 样本。在第二个终端运行
+`rbt ps`、`rbt graph` 和 `rbt why hello-sink`；在启动器终端按 Ctrl-C 停止并回收应用图。
+请参阅[快速入门](docs/quickstart.md)，了解消息/组件创建、提供者替换、流背压以及
+MCAP 录制/回放。接下来可阅读[项目布局指南](docs/project-layout.md)和
+[组件编写指南](docs/component-authoring.md)。
 
-When developing directly from a checkout instead of an installed prefix, keep
-`RBT_RUST_SDK` set until after `rbt new` so generated manifests record the
-explicit SDK location.
+直接从检出目录开发而非使用已安装前缀时，请保留 `RBT_RUST_SDK`，直到运行完
+`rbt new`，以便生成的清单记录明确的 SDK 路径。
 
-For a fixed local request/response capability, use the
-[Rust RPC onboarding example](docs/rpc.md).  It demonstrates activation-owned
-server/client endpoints, loaned request/response payloads, bounded deadlines,
-and cancellation without putting Composer in the payload path.
+如需固定的本地请求/响应能力，请参阅 [Rust RPC 入门示例](docs/rpc.md)。示例演示由激活
+拥有的服务端/客户端端点、借用的请求/响应负载、有界截止时间，以及不让 Composer 进入
+负载路径的取消机制。
 
-## Real-hardware timestamps
+<a id="real-hardware-timestamps"></a>
 
-Use [the time guide](docs/time.md) for identified host/device timestamps,
-checked arithmetic, device reset generations and explicit calibrated mappings.
-`rbt time status --json` reads local clock diagnostics without Composer.
-`rbt::time_stream::StampedBytes`, C++ `rbt/time_stream.hpp` and Python
-`rbt.time_stream` carry capture and receive metadata in the same native sample.
-Unknown capture time stays unknown; legacy Image/PointCloud timestamps retain
-their existing ABI and have no implicit clock-domain guarantee.
+## 实机时间戳
 
-The [physical V4L2 camera example](examples/09-time-camera/README.md) requires an
-explicit device. Run `scripts/verify_time.sh --quick` or `--full`; hardware
-acceptance is a separate `--hardware --device /dev/video0` run. Evidence is
-recorded in [the time report](docs/time-report.md).
+有关带标识的主机/设备时间戳、经过检查的算术运算、设备重置代次以及显式校准映射，请参阅
+[时间指南](docs/time.md)。`rbt time status --json` 可在不依赖 Composer 的情况下读取
+本地时钟诊断信息。`rbt::time_stream::StampedBytes`、C++ `rbt/time_stream.hpp` 和
+Python `rbt.time_stream` 会在同一个原生样本中携带采集与接收元数据。未知采集时间仍保持
+未知；旧版 Image/PointCloud 时间戳保留现有 ABI，且不隐含任何时钟域保证。
 
-## Spatial transforms
+[实体 V4L2 相机示例](examples/09-time-camera/README.md)需要明确指定设备。运行
+`scripts/verify_time.sh --quick` 或 `--full`；硬件验收需单独运行
+`--hardware --device /dev/video0`。结果记录在[时间报告](docs/time-report.md)中。
 
-The [TF guide](docs/tf.md) describes the accepted v0.8 software release:
-validated 3D transforms, explicit frame direction, bounded local history,
-capture-time lookups, static snapshot recovery, and Rust/C++/Python APIs.
-Software verification is recorded in the [TF acceptance report](docs/tf-report.md);
-physical-camera TF hardware acceptance remains NOT RUN.
+<a id="spatial-transforms"></a>
 
-Run the local configuration example with
-`cargo run -p rbt-tf-local -- --config docs/tf-config-example.toml`.
-The [camera/TF example](examples/10-tf-camera/README.md) requires an explicitly
-selected device and supplied extrinsics; configured values do not establish
-physical calibration accuracy. TF queries stay inside each consumer process.
+## 空间变换
 
-## Advanced mixed-language reference
+已验收的 v0.8 软件版本包括经过验证的 3D 变换、显式坐标系方向、有界本地历史、按采集
+时间查询、静态快照恢复，以及 Rust/C++/Python API；详情见 [TF 指南](docs/tf.md)。
+软件验证记录在 [TF 验收报告](docs/tf-report.md)中；实体相机 TF 硬件验收仍未执行。
 
-The remaining repository examples and release gates also use CMake 3.22+, a
-C++20 compiler, Git, Ninja, and our unified iceoryx2 0.10.0-rbt.2 C++ binding.
+使用以下命令运行本地配置示例：
+`cargo run -p rbt-tf-local -- --config docs/tf-config-example.toml`。
+[相机/TF 示例](examples/10-tf-camera/README.md)需要明确选择设备并提供外参；配置值本身
+并不能证明实际标定精度。TF 查询仅在各消费者进程内部执行。
 
-### 1. Build the mixed fixtures
+<a id="advanced-mixed-language-reference"></a>
+
+## 多语言进阶参考
+
+仓库中的其余示例和发行门禁还需要 CMake 3.22+、C++20 编译器、Git、Ninja，以及统一的
+iceoryx2 0.10.0-rbt.2 C++ 绑定。
+
+<a id="1-build-the-mixed-fixtures"></a>
+
+### 1. 构建多语言测试组件
 
 ```bash
 ./scripts/bootstrap_iceoryx2_cpp.sh
@@ -210,10 +189,10 @@ cmake -S sdk/cpp -B target/v01-cpp-debug -G Ninja \
 cmake --build target/v01-cpp-debug --target detector_component
 ```
 
-The unified native bootstrap uses `target/phase4-toolchain`; select another
-provisioned toolchain directory with `RBT_PHASE4_TOOLCHAIN`.
+统一的原生引导流程使用 `target/phase4-toolchain`；如需使用其他已配置的工具链目录，
+请通过 `RBT_PHASE4_TOOLCHAIN` 选择。
 
-To build and install the Python data SDK:
+构建并安装 Python 数据 SDK：
 
 ```bash
 python -m build --wheel python
@@ -232,17 +211,17 @@ image = sample.numpy()
 print(image.shape)
 ```
 
-`image` is a borrowed, read-only NumPy view. It owns the received shared-memory
-sample through its base object and does not copy the payload.
+`image` 是借用的只读 NumPy 视图。它通过基对象持有接收的共享内存样本，不会复制负载。
 
-Python publishers use an explicit loan/mapping/send sequence. Keep the
-publisher and loan alive, delete every writable NumPy alias, then call
-`loan.send()`; an alias that survives the send attempt is rejected rather than
-silently copied.
+Python 发布者使用明确的 loan/mapping/send 顺序。发布者和 loan 必须保持存活；删除所有
+可写 NumPy 别名后，再调用 `loan.send()`。如果发送时仍有别名存在，操作会被拒绝，不会
+悄悄改为拷贝。
 
-### 2. Start a mixed Rust/C++ graph
+<a id="2-start-a-mixed-rustc-graph"></a>
 
-Run each command in its own terminal from the repository root:
+### 2. 启动 Rust/C++ 混合应用图
+
+从仓库根目录开始，在各自的终端中分别运行这些命令：
 
 ```bash
 target/debug/composer
@@ -251,16 +230,18 @@ target/v01-cpp-debug/detector_component
 target/debug/viewer
 ```
 
-The live graph is:
+运行中的应用图如下：
 
 ```text
 Rust Camera -- Camera/Image --> C++ Detector -- Detections/Detection --> Rust Viewer
 ```
 
-Set `RBT_COMPOSER_ADDR=127.0.0.1:7555` consistently in all terminals to use a
-different control address.
+如需使用其他控制地址，请在所有终端中一致地设置
+`RBT_COMPOSER_ADDR=127.0.0.1:7555`。
 
-### 3. Inspect it
+<a id="3-inspect-it"></a>
+
+### 3. 检查运行状态
 
 ```bash
 rbt ps
@@ -268,28 +249,29 @@ rbt graph
 rbt capability list
 ```
 
-`rbt ps` reports component, process, activation, lifecycle state, and control
-connection. `rbt graph` shows the two resolved edges. Copy a capability UUID or
-endpoint from `rbt capability list`, then inspect its ABI and queue policy:
+`rbt ps` 会报告组件、进程、激活、生命周期状态和控制连接。`rbt graph` 会显示已解析的
+两条边。从 `rbt capability list` 复制能力 UUID 或端点，再检查其 ABI 和队列策略：
 
 ```bash
 rbt stream info <capability-id-or-service>
 ```
 
-Machine-readable views are available through `rbt ps --json` and
-`rbt capability list --json`; graph output supports `--dot`.
+可通过 `rbt ps --json` 和 `rbt capability list --json` 获取机器可读视图；图输出支持
+`--dot`。
 
-### 4. Remove and replace the provider
+<a id="4-remove-and-replace-the-provider"></a>
 
-Terminate the Rust camera process and ask Composer why the detector stopped:
+### 4. 移除并替换提供者
+
+终止 Rust 相机进程，再向 Composer 查询检测器停止的原因：
 
 ```bash
 kill -KILL <camera-a-pid>
 rbt why detector
 ```
 
-The detector becomes `BLOCKED` because `Camera` has no active provider, and
-the viewer becomes `BLOCKED` transitively. Start the replacement fixture:
+由于 `Camera` 没有活动提供者，检测器会变为 `BLOCKED`，查看器也会随之变为 `BLOCKED`。
+启动替代测试组件：
 
 ```bash
 cargo run -p camera-b
@@ -297,11 +279,10 @@ rbt ps
 rbt graph
 ```
 
-The existing C++ detector process activates against the new capability. Its
-process identity and prepared model remain unchanged; its `ActivationId` and
-activation-owned output `CapabilityInstanceId` are new.
+现有 C++ 检测器进程会针对新能力重新激活。它的进程身份和已准备好的模型保持不变；
+其 `ActivationId` 和激活所拥有的输出 `CapabilityInstanceId` 会更新。
 
-Restart Composer itself while the graph is active:
+在应用图运行期间重启 Composer：
 
 ```bash
 composer_pid="$(pgrep -n -x composer)"
@@ -311,89 +292,81 @@ rbt ps
 rbt graph
 ```
 
-The component processes and shared-memory endpoints stay alive during the
-outage. After reconnect and snapshot reconstruction, the new Composer reaches
-the same graph with `0 deactivate, 0 activate`; process, activation, and
-capability identities are unchanged.
+故障期间，组件进程和共享内存端点会继续运行。重新连接并重建快照后，新 Composer 会
+恢复相同的应用图，结果为 `0 deactivate, 0 activate`；进程、激活和能力身份均保持不变。
 
-The complete automated version, including a Composer restart and a critical
-task failure, is:
+包含 Composer 重启和关键任务故障的完整自动化版本如下：
 
 ```bash
 ./scripts/test_mixed_runtime.sh
 ```
 
-## Frozen runtime semantics inherited from v0.1
+<a id="frozen-runtime-semantics-inherited-from-v01"></a>
 
-The v0.1 runtime freezes these architectural boundaries:
+## 从 v0.1 沿用并冻结的运行时语义
 
-1. Composer failure does not imply provider failure.
-2. A capability exists only while its owning activation is valid.
-3. A critical-task failure invalidates its activation and withdraws its
-   endpoints and capabilities; a background-task failure does not.
-4. Healthy Composer recovery imports complete snapshots and reconstructs the
-   existing graph instead of recreating it.
-5. Payloads never pass through Composer.
-6. The local shared-memory message ABI is not a network wire format.
+v0.1 运行时冻结了以下架构边界：
 
-Preparation is process-lifetime work. Activation owns resolved bindings,
-streams, capabilities, tasks, and cleanup. Rust and C++ implement the same
-contract. Python delegates lifecycle and task ownership to that runtime. On a healthy Composer restart, processes keep moving data, reconnect,
-and reconcile with `0 deactivate, 0 activate`.
+1. Composer 故障不代表提供者故障。
+2. 能力仅在其所属激活有效期间存在。
+3. 关键任务故障会使其激活失效，并撤销端点和能力；后台任务故障不会。
+4. Composer 正常恢复时会导入完整快照并重建现有应用图，而不是重新创建应用图。
+5. 负载绝不经过 Composer。
+6. 本地共享内存消息 ABI 不是网络传输格式。
 
-The independent version axes for the v0.8 release are:
+准备阶段属于进程级工作。激活拥有已解析的绑定、流、能力、任务和清理逻辑。
+Rust 和 C++ 实现相同契约；Python 将生命周期和任务所有权交给该运行时。在 Composer
+正常重启期间，进程会继续传输数据、重新连接并完成协调，结果为
+`0 deactivate, 0 activate`。
 
-| Axis | Value |
+v0.8 发行版各自独立的版本轴如下：
+
+| 版本轴 | 值 |
 | --- | ---: |
 | SDK | `0.8.0` |
-| IDL language | `1` |
-| Message descriptor format | `1` |
-| Control protocol | `2` |
-| Composer snapshot | `4` |
-| MCAP/file encoding | `1` (`rbt-canonical-v1`) |
+| IDL 语言 | `1` |
+| 消息描述符格式 | `1` |
+| 控制协议 | `2` |
+| Composer 快照 | `4` |
+| MCAP/文件编码 | `1` (`rbt-canonical-v1`) |
 
-Control and snapshot mismatches are rejected exactly. Generator/SDK versions
-are not inputs to the frozen message layout hash.
+控制协议和快照版本必须精确匹配。生成器/SDK 版本不参与冻结的消息布局哈希计算。
 
-## Public SDKs
+<a id="public-sdks"></a>
 
-Rust applications normally depend on `crates/rbt` and use its curated
-`component`, `control`, `stream`, `types`, `rpc`, `time`, `time_stream`, and `tf`
-modules. Its prelude is
-intentionally small, and public boundaries use typed errors instead of
-exposing internal `anyhow` errors.
+## 公共 SDK
 
-C++ applications include headers below `include/rbt`, implement
-`rbt::Component`, and run it with `rbt::ComponentRuntime`. Activation tasks are
-owned by `EffectScope`, use `std::jthread`/`std::stop_token`, and are joined
-during LIFO teardown. Installed consumers use:
+Rust 应用通常依赖 `crates/rbt`，并使用其中精选的 `component`、`control`、`stream`、
+`types`、`rpc`、`time`、`time_stream` 和 `tf` 模块。其 prelude 刻意保持精简；公共
+边界使用有类型的错误，而不暴露内部 `anyhow` 错误。
+
+C++ 应用包含 `include/rbt` 下的头文件，实现 `rbt::Component`，并通过
+`rbt::ComponentRuntime` 运行。激活任务由 `EffectScope` 拥有，使用
+`std::jthread`/`std::stop_token`，并在按 LIFO 顺序清理时等待任务结束。已安装的消费者使用：
 
 ```cmake
 find_package(rbt CONFIG REQUIRED)
 target_link_libraries(my_node PRIVATE rbt::runtime rbt::iox2)
 ```
 
-Run `./scripts/test_install.sh` to install into a temporary prefix, verify the
-installed docs/licenses, create and run a generated Rust graph with the staged
-`rbt`/`rbt-idl`/Composer, and build fresh Rust and C++ consumers outside the
-repository. The generated project and Rust consumer resolve only the staged
-public SDK; the C++ consumer resolves the installed CMake package.
+运行 `./scripts/test_install.sh` 可将软件安装到临时前缀、验证安装后的文档/许可证，
+使用暂存的 `rbt`/`rbt-idl`/Composer 创建并运行生成的 Rust 应用图，并在仓库外构建全新的
+Rust 与 C++ 消费者。生成的项目和 Rust 消费者只解析暂存的公共 SDK；C++ 消费者解析已
+安装的 CMake 软件包。
 
-Python consumers use `rbt.ImageSubscriber` and `rbt.PointCloudSubscriber`, and
-producers use `rbt.ImagePublisher` and `rbt.PointCloudPublisher`. Received
-NumPy views retain the native receive guard and remain read-only; publisher
-views are writable, non-owning, and require all aliases to be dropped before
-send. Both directions use the existing event-driven WaitSet while releasing
-the GIL. Python can also subclass `rbt.Component`; both its synchronous and
-asyncio adapters delegate lifecycle, identity, cancellation, and composition
-to the existing Rust runtime. The Python package also exposes typed RPC,
-identified time, stamped payloads, and local TF through `rbt.tf`.
+Python 消费者使用 `rbt.ImageSubscriber` 和 `rbt.PointCloudSubscriber`，发布者使用
+`rbt.ImagePublisher` 和 `rbt.PointCloudPublisher`。接收得到的 NumPy 视图会持有原生接收
+保护对象，并保持只读；发布者视图可写但不拥有数据，发送前必须释放所有别名。两个方向
+都会在释放 GIL 的同时使用现有的事件驱动 WaitSet。Python 也可以继承 `rbt.Component`；
+同步和 asyncio 适配器都会将生命周期、身份、取消和组合交由现有 Rust 运行时处理。
+Python 包还提供有类型的 RPC、带标识的时间和带时间戳的负载，并通过 `rbt.tf` 提供本地 TF。
 
-## MCAP record, inspect, and play
+<a id="mcap-record-inspect-and-play"></a>
 
-Record a fixed set of supported active capabilities as a bounded side
-subscriber, inspect the file without Composer, and replay it through fresh
-native Component identities:
+## MCAP 录制、检查和播放
+
+将一组固定的受支持活动能力录制为有界旁路订阅者；无需 Composer 即可检查文件，并通过
+全新的原生 Component 身份回放：
 
 ```bash
 rbt record --output run.mcap --capability Camera
@@ -404,14 +377,14 @@ rbt play mixed.mcap --rate 2.0
 rbt play mixed.mcap --rate 0
 ```
 
-Image, PointCloud, and ControlCommand use IDL-generated canonical durable
-bytes, not raw `repr(C)` memory. MCAP `log_time` drives one global monotonic
-replay schedule; message timestamps stay unchanged inside the payload. Sensor
-recorder overflow is visible and marks the file incomplete, while Control
-loss and non-transactional replay send errors are terminal and never retried.
-See [MCAP recording and playback](docs/mcap.md).
+Image、PointCloud 和 ControlCommand 使用由 IDL 生成的规范持久化字节，而不是原始
+`repr(C)` 内存。MCAP `log_time` 驱动一个全局单调回放计划；负载内的消息时间戳保持不变。
+Sensor 录制器溢出会显式报告并将文件标记为不完整；Control 丢失和非事务性回放发送错误
+则属于终止错误，不会重试。详见 [MCAP 录制与播放](docs/mcap.md)。
 
-## Examples
+<a id="examples"></a>
+
+## 示例
 
 ```text
 examples/
@@ -436,18 +409,18 @@ examples/
 └── advanced/            replacement, MCAP source, and low-level transport fixtures
 ```
 
-The C++ examples also contain standalone `CMakeLists.txt` files for use against
-an installed package. Low-level Phase 4 fixtures remain available under
-`advanced`/`interop` but no longer dominate the public example layout.
+这些 C++ 示例还包含独立的 `CMakeLists.txt` 文件，可配合已安装的软件包使用。底层
+Phase 4 测试组件仍保留在 `advanced`/`interop` 下，但不再主导公开示例的布局。
 
-## Build, generate, verify
+<a id="build-generate-verify"></a>
 
-Use the [framework development guide](docs/development.md) for repository
-ownership, native bootstrap, language builds, generated artifacts, and choosing
-checks for a change. Cargo and CMake build the implementation; the `rbt` CLI
-scaffolds projects, delegates their build/run, and inspects runtime state.
+## 构建、生成和验证
 
-Regenerate the four production schemas together:
+有关仓库职责、原生引导、语言构建、生成产物以及如何为变更选择检查，请参阅
+[框架开发指南](docs/development.md)。Cargo 和 CMake 用于构建实现；`rbt` CLI 用于
+搭建项目、委托构建/运行并检查运行时状态。
+
+一次性重新生成四个正式 schema：
 
 ```bash
 cargo run --locked -p rbt-idl -- generate \
@@ -458,7 +431,7 @@ cargo run --locked -p rbt-idl -- generate \
   --python python/rbt/_generated
 ```
 
-For v0.8 integrated software verification, choose the required mode:
+执行 v0.8 集成软件验证时，选择所需模式：
 
 ```bash
 ./scripts/verify_tf.sh --quick
@@ -466,44 +439,41 @@ For v0.8 integrated software verification, choose the required mode:
 ./scripts/verify_tf.sh --full
 ```
 
-The aggregate TF gate inherits Time, then RPC. Full mode includes the existing
-lifecycle, WaitSet, pressure, Python, MCAP, DX, installation, interop, and soak
-lanes. During development, use the affected package or subsystem checks in
-[testing](docs/testing.md); a documentation change needs command, API, and link
-checks. The SDK registers 12 CTest cases, with four focused TF cases.
-Physical-device gates are separate and require explicit device selection.
+汇总 TF 门禁依次继承 Time 和 RPC。完整模式包含现有的生命周期、WaitSet、背压、Python、
+MCAP、DX、安装、互操作和长时间稳定性测试。在开发过程中，请根据变更使用受影响软件包
+或子系统的[测试](docs/testing.md)；文档变更需要检查命令、API 和链接。SDK 注册了 12 个
+CTest 用例，其中 4 个专门测试 TF。实体设备门禁单独执行，并要求明确选择设备。
 
-## Documentation
+<a id="documentation"></a>
 
-The **[developer documentation index](docs/README.md)** is the complete entrypoint
-for current v0.8 guides and retained release evidence.
+## 文档
 
-| Start here | Purpose |
+**[开发者文档索引](docs/README.md)** 是当前 v0.8 指南和保留发行证据的完整入口。
+
+| 从这里开始 | 用途 |
 | --- | --- |
-| [Quickstart](docs/quickstart.md) | Generate, check, and run the first application |
-| [Framework development](docs/development.md) | Repository map, builds, code generation, and focused verification |
-| [Architecture](docs/architecture.md) and [concepts](docs/concepts.md) | Planes, lifecycle, identity, ownership, and recovery |
-| [Component authoring](docs/component-authoring.md) and [project layout](docs/project-layout.md) | Requirements, bindings, tasks, cancellation, and project files |
-| [Rust](docs/rust-sdk.md), [C++](docs/cpp-sdk.md), [Python](docs/python.md) | Language APIs and native ownership |
-| [RPC](docs/rpc.md), [Time](docs/time.md), [TF](docs/tf.md) | Typed requests, capture-time semantics, and local transform queries |
-| [IDL](docs/idl.md) and [ABI](docs/abi.md) | Canonical schemas, generated bindings, and frozen layouts |
-| [CLI](docs/cli.md) and [debugging](docs/debugging.md) | Graph, stream, RPC, time, and TF diagnostics |
-| [Examples](examples/README.md) and [testing](docs/testing.md) | Runnable learning path and verification scope |
-| [Compatibility](docs/compatibility.md) | Product, protocol, file-format, and native version axes |
+| [快速入门](docs/quickstart.md) | 生成、检查并运行第一个应用 |
+| [框架开发](docs/development.md) | 仓库结构、构建、代码生成和定向验证 |
+| [架构](docs/architecture.md)与[概念](docs/concepts.md) | 平面、生命周期、身份、所有权和恢复 |
+| [组件编写](docs/component-authoring.md)与[项目布局](docs/project-layout.md) | 需求、绑定、任务、取消和项目文件 |
+| [Rust](docs/rust-sdk.md)、[C++](docs/cpp-sdk.md)、[Python](docs/python.md) | 语言 API 和原生所有权 |
+| [RPC](docs/rpc.md)、[时间](docs/time.md)、[TF](docs/tf.md) | 有类型的请求、采集时间语义和本地变换查询 |
+| [IDL](docs/idl.md)与[ABI](docs/abi.md) | 规范 schema、生成绑定和冻结布局 |
+| [CLI](docs/cli.md)与[调试](docs/debugging.md) | 应用图、流、RPC、时间和 TF 诊断 |
+| [示例](examples/README.md)与[测试](docs/testing.md) | 可运行的学习路径和验证范围 |
+| [兼容性](docs/compatibility.md) | 产品、协议、文件格式和原生版本轴 |
 
-The index separates maintained guidance from historical investigations and
-reports. The [v0.8 TF report](docs/tf-report.md) is the current software acceptance
-record; earlier reports retain their original versions and test results.
+该索引将维护中的指南与历史调查和报告分开。[v0.8 TF 报告](docs/tf-report.md)是当前
+的软件验收记录；较早的报告保留其原始版本和测试结果。
 
-The project is licensed under MIT or Apache-2.0. Third-party provenance is
-listed in `THIRD_PARTY_NOTICES.md`; that file is engineering notice material,
-not legal advice.
+本项目采用 MIT 或 Apache-2.0 许可证。第三方来源信息列于
+`THIRD_PARTY_NOTICES.md`；该文件属于工程告知材料，并非法律意见。
 
-## Scope after v0.8
+<a id="scope-after-v08"></a>
 
-Simulator time, Parameters, a network gateway or cross-host TF, ROS 2 bridging,
-calibration solvers, a global TF query service, schema evolution/migration, and
-adaptive allocator redesign remain outside this release. Explicit bounded
-loan/borrow tuning is covered by the [pressure guide](docs/pressure.md).
-Benchmark results require the recorded method and environment metadata; see
-[benchmark methodology](docs/benchmarks.md).
+## v0.8 之后的范围
+
+仿真器时间、Parameters、网络网关或跨主机 TF、ROS 2 桥接、标定求解器、全局 TF 查询服务、
+schema 演进/迁移以及自适应分配器重设计均不在本次发行范围内。显式的有界 loan/borrow
+调优见[背压指南](docs/pressure.md)。基准测试结果需要同时提供记录的方法和环境元数据；
+详见[基准测试方法](docs/benchmarks.md)。

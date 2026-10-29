@@ -192,3 +192,13 @@ target/ros2-transport-benchmark/plot-venv/bin/python -m pip install matplotlib==
 target/ros2-transport-benchmark/plot-venv/bin/python benchmarks/ros2_transport/plot.py \
   --results-dir benchmarks/ros2_transport/results/2026-10-29
 ```
+
+The Chinese main README uses separate `*-zh.svg`/`*-zh.png` chart variants.
+Generate them with `--language zh`; a CJK font such as Noto Sans CJK must be
+installed. The Chinese SVGs embed glyph outlines so readers do not need the
+font locally. The default English figures and measured data remain separate.
+
+```bash
+target/ros2-transport-benchmark/plot-venv/bin/python benchmarks/ros2_transport/plot.py \
+  --results-dir benchmarks/ros2_transport/results/2026-10-29 --language zh
+```
