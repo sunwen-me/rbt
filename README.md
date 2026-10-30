@@ -76,6 +76,8 @@ rbt why hello-sink
 
 ## 跨进程通信实测
 
+### 开发机 · x86_64
+
 RBT SDK 0.8.0 与 ROS 2 Lyrical / Fast DDS 3.6.2，在 Intel Core Ultra 5 125H、Linux x86_64 上运行独立的发布和订阅进程。
 两侧使用相同的合成定长消息、填充与校验方式，队列深度为 1；每组预热 3 秒、测量 15 秒，重复 3 次。
 
@@ -101,6 +103,32 @@ RBT SDK 0.8.0 与 ROS 2 Lyrical / Fast DDS 3.6.2，在 Intel Core Ultra 5 125H�
 </details>
 
 [完整报告与原始数据](benchmarks/ros2_transport/results/2026-10-29/README.md) · [复现实验](benchmarks/ros2_transport/README.md)
+
+### QCS8550 板端 · ARM64
+
+2026-10-31 在 QCS8550（AidLux Ubuntu 22.04、ROS 2 Humble / Fast DDS 2.6.11）补测相同的 27 轮实验。
+发布与订阅进程固定允许使用 CPU 3、4，已有 IMU、感知服务保持运行。统计口径同上：**两进程 CPU 合计 / PSS 内存合计（MiB）**。
+
+| 工作负载 | RBT 原生 loan | ROS 2 SHM（拷贝） | ROS 2 loan + Data Sharing |
+|---|---:|---:|---:|
+| IMU 尺寸 · 256 B · 200 Hz | 1.53% / 5.80 | 5.07% / 22.89 | 4.13% / 22.93 |
+| 点云尺寸 · 1.60 MB · 10 Hz | 0.53% / 7.32 | 2.00% / 82.73 | 0.80% / 27.48 |
+| 原始视频尺寸 · 1080p RGB8 · 30 Hz | 2.60% / 11.72 | 13.94% / 268.36 | 2.53% / 40.73 |
+
+27/27 轮有效，均达到目标频率、投递率 100%；RBT 与 ROS loan 每轮均验证了 8 个共享缓冲区地址样本。
+本组配置下 RBT 的 PSS 更低，视频 CPU 与 ROS loan 接近。这里使用相同尺寸的合成定长消息；标准 `sensor_msgs` 在该板端安装中报告不支持 loan。
+板端与开发机使用不同的 ROS、内核和背景负载，不能直接用两表推断处理器性能差距。
+
+<details>
+<summary>查看 QCS8550 CPU 与内存图表</summary>
+
+![QCS8550 两进程 CPU 合计](benchmarks/ros2_transport/results/2026-10-31-qcs8550/cpu-usage-zh.svg)
+
+![QCS8550 两进程 PSS 内存合计](benchmarks/ros2_transport/results/2026-10-31-qcs8550/memory-pss-zh.svg)
+
+</details>
+
+[QCS8550 完整报告、逐轮数据与复现方法](benchmarks/ros2_transport/results/2026-10-31-qcs8550/README.md)
 
 ## 文档
 

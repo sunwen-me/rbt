@@ -13,7 +13,10 @@ loan + Data Sharing paths using identical synthetic fixed-size payloads.
 The [2026-10-29 report](../benchmarks/ros2_transport/results/2026-10-29/README.md)
 contains the measured CPU/PSS ranges, all 27 trial rows, loan evidence and
 standard-message capability limits. This is a Linux x86_64 host result,
-separate from the historical native transport results below.
+separate from the historical native transport results below. The
+[2026-10-31 QCS8550 report](../benchmarks/ros2_transport/results/2026-10-31-qcs8550/README.md)
+adds the same workload matrix on the ARM64 board with ROS 2 Humble.
+Keep the different ROS and OS versions visible when comparing platforms.
 
 ## Current RPC and TF harnesses
 

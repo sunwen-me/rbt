@@ -117,7 +117,7 @@ def validate(summary, trials):
 
 def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str,
            stem: str, divisor: float = 1.0, language: str = "en",
-           font_family: str | None = None) -> None:
+           font_family: str | None = None, architecture: str = "unknown") -> None:
     if language == "zh":
         plt.rcParams.update({
             "svg.fonttype": "path",
@@ -131,7 +131,7 @@ def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str
         trial_note = "柱：3 轮实测的中位数；点：每轮实测；须线：观察到的最小—最大范围（非置信区间）。"
         scope_note = (
             "发布端与接收端分别运行在两个独立进程中；双方均使用自定义固定布局合成消息 · "
-            "x86_64 · 展示发布端与接收端合计指标 · 标准 sensor_msgs：仅做能力探测，不测性能。"
+            f"{architecture} · 展示发布端与接收端合计指标 · 标准 sensor_msgs：仅做能力探测，不测性能。"
         )
     else:
         plt.rcParams.update({
@@ -146,7 +146,7 @@ def render(plt, Line2D, Patch, directory: Path, data, *, title: str, ylabel: str
             "Bars: medians across 3 trials; dots: each trial; whiskers: observed min–max range (not confidence intervals)."
         )
         scope_note = (
-            "Custom fixed-layout synthetic messages on both stacks · x86_64 · combined publisher + subscriber · "
+            f"Custom fixed-layout synthetic messages on both stacks · {architecture} · combined publisher + subscriber · "
             "standard sensor_msgs: capability probe only, not performance-measured."
         )
     fig, ax = plt.subplots(figsize=(14, 7.2), facecolor="white")
@@ -259,10 +259,12 @@ def main(argv=None) -> int:
         memory_ylabel = "Combined publisher + subscriber PSS (MiB)"
     render(plt, Line2D, Patch, args.results_dir, data["total_cpu_percent"],
            title=cpu_title, ylabel=cpu_ylabel, stem=f"cpu-usage{suffix}",
-           language=args.language, font_family=font_family)
+           language=args.language, font_family=font_family,
+           architecture=summary.get("runtime_metadata", {}).get("architecture", "unknown"))
     render(plt, Line2D, Patch, args.results_dir, data["median_total_pss_kib"],
            title=memory_title, ylabel=memory_ylabel, stem=f"memory-pss{suffix}",
-           divisor=1024.0, language=args.language, font_family=font_family)
+           divisor=1024.0, language=args.language, font_family=font_family,
+           architecture=summary.get("runtime_metadata", {}).get("architecture", "unknown"))
     if args.language == "zh":
         print(f"已写入 CPU 与 PSS 图表：{args.results_dir}")
     else:

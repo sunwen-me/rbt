@@ -8,6 +8,8 @@ navigation dependency.
 
 The [2026-10-29 measured report](results/2026-10-29/README.md) includes all
 27 accepted trials, CPU/PSS ranges and the standard-message loan probe.
+The [2026-10-31 QCS8550 report](results/2026-10-31-qcs8550/README.md) adds
+an ARM64 board run using ROS 2 Humble / Fast DDS 2.6.11.
 
 ## Workload
 
@@ -45,7 +47,9 @@ configuration through `rmw_fastrtps_shared_cpp`'s
 version-coupled RMW internals. The runner rejects a wrong RMW implementation,
 missing or unexpected transport/QoS readback, unsupported loans, and failed
 trials instead of treating them as successful comparisons. Build and run
-against a matching `rmw_fastrtps_cpp` installation.
+against a matching `rmw_fastrtps_cpp` installation. The endpoint supports the
+Fast DDS 2.x `.h` transport descriptor and Humble wait-set API as well as
+the newer Fast DDS 3.x headers.
 
 The runner samples up to eight sequence-matched message addresses per process
 and resolves them against `/proc/<pid>/maps`, comparing shared backing device,
@@ -76,7 +80,10 @@ Sharing OFF without imposing a history depth or pool limit; this avoids
 applying benchmark pool limits to unrelated ROS endpoints such as `rosout`.
 The runner selects the per-trial XML profile with
 `FASTDDS_DEFAULT_PROFILES_FILE` and enables its QoS settings with
-`RMW_FASTRTPS_USE_QOS_FROM_XML=1`.
+`RMW_FASTRTPS_USE_QOS_FROM_XML=1`. It also sets the historical
+`FASTRTPS_DEFAULT_PROFILES_FILE` selector to the same file for Fast DDS 2.x,
+and `ROS_LOCALHOST_ONLY=0` so Humble does not override the configured transports.
+The actual SHM-only readback remains mandatory.
 
 The RBT endpoint uses the SDK's default Sensor resources. See the [C++ SDK
 data-plane ownership notes](../../docs/cpp-sdk.md#data-plane-ownership).
@@ -103,7 +110,9 @@ repetitions. The runner rotates mode order across repetitions for each case.
 processes; the local comparison uses `--cpus 1,6` when those are distinct
 permitted physical cores. With no option, the runner uses the invoking
 process's allowed CPU set. Endpoint initialization and discovery complete
-before the measurement window.
+before the measurement window. The publisher readiness file must appear
+before the subscriber starts, because RBT opens an existing readiness sidecar;
+this barrier is outside warmup and measurement.
 
 CPU is read from each endpoint's `/proc/<pid>/stat` user and system time near
 the beginning and 5 ms before the end of the window. The reported total adds

@@ -1,0 +1,865 @@
+{
+  "after": {
+    "architecture": "aarch64",
+    "binary_sha256": {
+      "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+      "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+      "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee",
+      "rbt_transport_bench": "c57d9a2bb44f0e64771ce370d74bdb15289f2ba175d93a284d7674cd0af56527",
+      "ros2_transport_bench": "2c5e93d8d234971d721f80ba73a60752550b9a3f1fec645dc704ce41fd39157a",
+      "standard_loan_probe": "d4a766596af6ea3d41094954dd9f30978c9019c1461a319931518605e0535348"
+    },
+    "build_type": "Release",
+    "client_date": "2026-10-31",
+    "compiler": "GCC 11.4.0",
+    "cpu_accounting_ticks_per_second": 100,
+    "cpu_affinity": [
+      3,
+      4
+    ],
+    "cpu_allowed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "cpuinfo": "processor\t: 0\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 1\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 2\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 3\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd4d\nCPU revision\t: 0\n\nprocessor\t: 4\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x2\nCPU part\t: 0xd47\nCPU revision\t: 0\n\nprocessor\t: 5\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd4e\nCPU revision\t: 0",
+    "cpus": {
+      "0": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "0"
+      },
+      "1": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "1"
+      },
+      "2": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "2"
+      },
+      "3": {
+        "cpu_capacity": "855",
+        "cpufreq/cpuinfo_max_freq": "2803200",
+        "cpufreq/scaling_cur_freq": "2803200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "1"
+      },
+      "4": {
+        "cpu_capacity": "855",
+        "cpufreq/cpuinfo_max_freq": "2803200",
+        "cpufreq/scaling_cur_freq": "2803200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "2"
+      },
+      "5": {
+        "cpu_capacity": "1024",
+        "cpufreq/cpuinfo_max_freq": "3187200",
+        "cpufreq/scaling_cur_freq": "3187200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "0"
+      }
+    },
+    "device_model": "Qualcomm Technologies, Inc. KalamaP HDK ",
+    "host_date_utc": "2026-10-30T23:16:20Z",
+    "loadavg": "0.68 0.86 1.01 1/1198 1182958",
+    "measured_source_revision": "b76f35886a76d92a91cc9eccc3c5effd3b9bb059",
+    "meminfo": "MemTotal:       15543596 kB\nMemFree:         2930772 kB\nMemAvailable:   13324736 kB\nBuffers:           37948 kB\nCached:          6495816 kB\nSwapCached:         1900 kB\nActive:          5596340 kB\nInactive:        1043952 kB\nActive(anon):      50032 kB\nInactive(anon):    66436 kB\nActive(file):    5546308 kB\nInactive(file):   977516 kB\nUnevictable:        9520 kB\nMlocked:               0 kB\nSwapTotal:       7753876 kB\nSwapFree:        6771092 kB\nDirty:                 0 kB\nWriteback:            72 kB\nAnonPages:        114836 kB\nMapped:            64484 kB\nShmem:              9996 kB\nKReclaimable:    3967052 kB\nSlab:             626660 kB\nSReclaimable:     138184 kB\nSUnreclaim:       488476 kB\nKernelStack:       19320 kB\nShadowCallStack:    4848 kB\nPageTables:        22956 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    15525672 kB\nCommitted_AS:    7158372 kB\nVmallocTotal:   259653632 kB\nVmallocUsed:      120652 kB\nVmallocChunk:          0 kB\nPercpu:             6096 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:         630784 kB\nCmaFree:            2580 kB",
+    "native_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "notes": [
+      "Installed ARM64 RBT SDK 0.8.0 from 2026-10-22; runtime source commit not embedded; actual library/header hashes retained.",
+      "Production services left running. No CPU isolation, service restart or governor change."
+    ],
+    "optimization": "-O3 -DNDEBUG",
+    "os_release": "PRETTY_NAME=\"Ubuntu 22.04.2 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.2 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\nAIDLUX_EDITION=linux\nROOTFS_VERSION=37",
+    "platform": "Linux-5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty-aarch64-with-glibc2.35",
+    "sdk_build_stamp": "2026-10-22T04:09:10+08:00\nLinux kalama 5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty #1 SMP PREEMPT Thu Mar 26 13:55:25 CST 2026 aarch64 aarch64 aarch64 GNU/Linux\nglibc 2.35\nc++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nrustc 1.98.1 (48a229cea 2026-09-01)\nrbt 0.8.0\nSDK 0.8.0\ncomposer 0.8.0\nfork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "sdk_source_commit": null,
+    "soc_id": "603",
+    "soc_machine": "QCS_KALAMAP",
+    "source_sha256": {
+      "harness/CMakeLists.txt": "c6cfeedcf57702ab114413180e69c9c7cf4d511bea01d58158b7382b1b7192de",
+      "harness/common.hpp": "dcfd7898f143b8158c7a310fbf3f5e487aaa10982cad842bd69955cbfabc099e",
+      "harness/config/loan.xml": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f",
+      "harness/config/shm.xml": "b513bbcc1c63ceea3b1d75e31151745cd9a6bcfdfae71e70787ab41f9d6001a6",
+      "harness/generated/cpp/rbt/transport_bench.hpp": "c43b8793bccf92c983e80dd7e129d52cd4a75ce2000a971acbee5cf86a894979",
+      "harness/msg/CloudFrame.msg": "c26dba7452e1a19fc2509f1d690290b80f27b629ffedb936e2078d0a02c4d1c9",
+      "harness/msg/ImuFrame.msg": "07f61cb689af826356f6035ef0e375fec88c9a053ca5e006080f4895060dfdb6",
+      "harness/msg/VideoFrame.msg": "74d42d06459ac4c0c9dd050d4909a04f90762643af95d31045a29d8403a1dc3f",
+      "harness/package.xml": "3e38172a0ebac27c4314553d7426d3e920a78bc7fa9ef4e6949265d424a4087a",
+      "harness/plot.py": "6b478799c88da716f41ea9a77445dd1a44d15897ee939e53b7b090ff4ed95521",
+      "harness/rbt_endpoint.cpp": "9e6b8cb4bd128c5531ba8205d66d7b9de01ae68dc281c582cc8bb82d89fdc04f",
+      "harness/ros2_endpoint.cpp": "808c0d5b2d68a25f0fcee77fcbc522c8b43fd5c279d9690f4fa70ec0b2a8b3eb",
+      "harness/run.py": "7cea759560bba361eb6a3ed28b4115c5f87da195c1a862220fe3cefe920c8d5d",
+      "harness/standard_loan_probe.cpp": "7f633a6d079528195154086c1e22a2b588af429a1e97396a25b1806498386ecd",
+      "harness/summarize.py": "045fd61d8131b975874ec6416e5cbd2c65a77f3470c169d6e838fc77859e46a8",
+      "harness/test_runner.py": "1a8a19f31374a7074f947c52637dcdbc1aa4c87c444f12882324f6ced0c73980",
+      "harness/test_summarize.py": "ba290efafdd20b12908ba3e5a558c8b76db8915281a2e8dcc95451cd2b35b908",
+      "harness/types/transport_bench.rbt": "076ebb215aef1d045cb30e3d0cfc6a4d75e2303d33f407f67ee06887159e9cd8",
+      "sdk/runtime.hpp": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c",
+      "sdk/stream.hpp": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091",
+      "sdk/types.hpp": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f",
+      "sdk/wait.hpp": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11"
+    },
+    "thermal": {
+      "thermal_zone0": {
+        "temp_millidegrees_celsius": "40400",
+        "type": "aoss-0"
+      },
+      "thermal_zone1": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "cpuss-0"
+      },
+      "thermal_zone10": {
+        "temp_millidegrees_celsius": "49100",
+        "type": "cpu-1-5"
+      },
+      "thermal_zone100": {
+        "temp_millidegrees_celsius": "4035",
+        "type": "vbat"
+      },
+      "thermal_zone101": {
+        "temp_millidegrees_celsius": "38000",
+        "type": "usb"
+      },
+      "thermal_zone102": {
+        "temp_millidegrees_celsius": "-40000",
+        "type": "wireless"
+      },
+      "thermal_zone103": {
+        "temp_millidegrees_celsius": "24000",
+        "type": "battery"
+      },
+      "thermal_zone11": {
+        "temp_millidegrees_celsius": "43200",
+        "type": "cpu-1-6"
+      },
+      "thermal_zone12": {
+        "temp_millidegrees_celsius": "44800",
+        "type": "cpu-1-7"
+      },
+      "thermal_zone13": {
+        "temp_millidegrees_celsius": "43600",
+        "type": "cpu-1-8"
+      },
+      "thermal_zone14": {
+        "temp_millidegrees_celsius": "44800",
+        "type": "cpu-1-9"
+      },
+      "thermal_zone15": {
+        "temp_millidegrees_celsius": "43200",
+        "type": "cpu-1-10"
+      },
+      "thermal_zone16": {
+        "temp_millidegrees_celsius": "41300",
+        "type": "aoss-1"
+      },
+      "thermal_zone17": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "cpu-0-0"
+      },
+      "thermal_zone18": {
+        "temp_millidegrees_celsius": "44400",
+        "type": "cpu-0-1"
+      },
+      "thermal_zone19": {
+        "temp_millidegrees_celsius": "44400",
+        "type": "cpu-0-2"
+      },
+      "thermal_zone2": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "cpuss-1"
+      },
+      "thermal_zone20": {
+        "temp_millidegrees_celsius": "39700",
+        "type": "nspss-0"
+      },
+      "thermal_zone21": {
+        "temp_millidegrees_celsius": "40100",
+        "type": "nspss-1"
+      },
+      "thermal_zone22": {
+        "temp_millidegrees_celsius": "38500",
+        "type": "nspss-2"
+      },
+      "thermal_zone23": {
+        "temp_millidegrees_celsius": "38100",
+        "type": "nspss-3"
+      },
+      "thermal_zone24": {
+        "temp_millidegrees_celsius": "42800",
+        "type": "video"
+      },
+      "thermal_zone25": {
+        "temp_millidegrees_celsius": "41300",
+        "type": "ddr"
+      },
+      "thermal_zone26": {
+        "temp_millidegrees_celsius": "39300",
+        "type": "mdmss-0"
+      },
+      "thermal_zone27": {
+        "temp_millidegrees_celsius": "38900",
+        "type": "mdmss-1"
+      },
+      "thermal_zone28": {
+        "temp_millidegrees_celsius": "39300",
+        "type": "mdmss-2"
+      },
+      "thermal_zone29": {
+        "temp_millidegrees_celsius": "38900",
+        "type": "mdmss-3"
+      },
+      "thermal_zone3": {
+        "temp_millidegrees_celsius": "43600",
+        "type": "cpuss-2"
+      },
+      "thermal_zone30": {
+        "temp_millidegrees_celsius": "39300",
+        "type": "camera-0"
+      },
+      "thermal_zone31": {
+        "temp_millidegrees_celsius": "40500",
+        "type": "camera-1"
+      },
+      "thermal_zone32": {
+        "temp_millidegrees_celsius": "39900",
+        "type": "aoss-2"
+      },
+      "thermal_zone33": {
+        "temp_millidegrees_celsius": "38700",
+        "type": "gpuss-0"
+      },
+      "thermal_zone34": {
+        "temp_millidegrees_celsius": "38300",
+        "type": "gpuss-1"
+      },
+      "thermal_zone35": {
+        "temp_millidegrees_celsius": "39100",
+        "type": "gpuss-2"
+      },
+      "thermal_zone36": {
+        "temp_millidegrees_celsius": "38300",
+        "type": "gpuss-3"
+      },
+      "thermal_zone37": {
+        "temp_millidegrees_celsius": "40300",
+        "type": "gpuss-4"
+      },
+      "thermal_zone38": {
+        "temp_millidegrees_celsius": "39900",
+        "type": "gpuss-5"
+      },
+      "thermal_zone39": {
+        "temp_millidegrees_celsius": "39500",
+        "type": "gpuss-6"
+      },
+      "thermal_zone4": {
+        "temp_millidegrees_celsius": "43200",
+        "type": "cpuss-3"
+      },
+      "thermal_zone40": {
+        "temp_millidegrees_celsius": "39900",
+        "type": "gpuss-7"
+      },
+      "thermal_zone5": {
+        "temp_millidegrees_celsius": "42800",
+        "type": "cpu-1-0"
+      },
+      "thermal_zone6": {
+        "temp_millidegrees_celsius": "41600",
+        "type": "cpu-1-1"
+      },
+      "thermal_zone7": {
+        "temp_millidegrees_celsius": "43600",
+        "type": "cpu-1-2"
+      },
+      "thermal_zone71": {
+        "temp_millidegrees_celsius": "40820",
+        "type": "pm8550_tz"
+      },
+      "thermal_zone72": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl0"
+      },
+      "thermal_zone73": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl1"
+      },
+      "thermal_zone74": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl2"
+      },
+      "thermal_zone75": {
+        "temp_millidegrees_celsius": "34595",
+        "type": "pm8550b_tz"
+      },
+      "thermal_zone76": {
+        "temp_millidegrees_celsius": "49123",
+        "type": "pm8550b_lite_tz"
+      },
+      "thermal_zone77": {
+        "temp_millidegrees_celsius": "562",
+        "type": "pm8550b-ibat-lvl0"
+      },
+      "thermal_zone78": {
+        "temp_millidegrees_celsius": "562",
+        "type": "pm8550b-ibat-lvl1"
+      },
+      "thermal_zone79": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl0"
+      },
+      "thermal_zone8": {
+        "temp_millidegrees_celsius": "43600",
+        "type": "cpu-1-3"
+      },
+      "thermal_zone80": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl1"
+      },
+      "thermal_zone81": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl2"
+      },
+      "thermal_zone82": {
+        "temp_millidegrees_celsius": "0",
+        "type": "socd"
+      },
+      "thermal_zone83": {
+        "temp_millidegrees_celsius": "34629",
+        "type": "pm8550ve_f_tz"
+      },
+      "thermal_zone84": {
+        "temp_millidegrees_celsius": "38475",
+        "type": "pm8550vs_c_tz"
+      },
+      "thermal_zone85": {
+        "temp_millidegrees_celsius": "37238",
+        "type": "pm8550vs_d_tz"
+      },
+      "thermal_zone86": {
+        "temp_millidegrees_celsius": "38542",
+        "type": "pm8550vs_e_tz"
+      },
+      "thermal_zone87": {
+        "temp_millidegrees_celsius": "37004",
+        "type": "pm8550vs_g_tz"
+      },
+      "thermal_zone9": {
+        "temp_millidegrees_celsius": "46300",
+        "type": "cpu-1-4"
+      },
+      "thermal_zone92": {
+        "temp_millidegrees_celsius": "38381",
+        "type": "skin-msm-therm"
+      },
+      "thermal_zone93": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "cam-flash-therm"
+      },
+      "thermal_zone94": {
+        "temp_millidegrees_celsius": "38239",
+        "type": "wlan-therm"
+      },
+      "thermal_zone95": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "pa-therm-1"
+      },
+      "thermal_zone96": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "rear-tof-therm"
+      },
+      "thermal_zone97": {
+        "temp_millidegrees_celsius": "39278",
+        "type": "usb-therm"
+      },
+      "thermal_zone98": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "wls-therm"
+      },
+      "thermal_zone99": {
+        "temp_millidegrees_celsius": "38251",
+        "type": "xo-therm"
+      }
+    },
+    "top_processes": [
+      "    PID %CPU COMMAND",
+      "1954721  8.1 rbt_dm_imu",
+      "3515301  2.7 graspgenx_rbt_w",
+      "   1887  2.3 init_qti_displa",
+      " 507456  2.1 dm_h3510_node",
+      " 506679  2.0 irq/385-spi1.0",
+      "   1348  1.1 polkitd",
+      "     16  1.0 rcuog/0",
+      "     15  0.9 rcu_preempt",
+      "1178022  0.7 kworker/0:1-events",
+      "1092658  0.6 kworker/u12:1-bwmon_wq",
+      "     90  0.5 kswapd0",
+      "1111729  0.5 kworker/u12:3-qc_ufs_qos_swq",
+      "1162197  0.5 kworker/u12:0-ufs_clkscaling_0",
+      "     17  0.4 rcuop/0",
+      "     33  0.4 rcuop/1",
+      "     41  0.4 rcuop/2",
+      "   1263  0.4 NetworkManager",
+      "1169939  0.4 kworker/u12:4-ext4-rsv-conversion",
+      "3133465  0.4 adb"
+    ],
+    "user_running_services": "  UNIT                           LOAD   ACTIVE SUB     DESCRIPTION\n  dbus.service                   loaded active running D-Bus User Message Bus\n  pipewire-media-session.service loaded active running PipeWire Media Session Manager\n  pipewire.service               loaded active running PipeWire Multimedia Service\n  rbt-dm-imu.service             loaded active running RBT native DM IMU publisher\n\nLOAD   = Reflects whether the unit definition was properly loaded.\nACTIVE = The high-level unit activation state, i.e. generalization of SUB.\nSUB    = The low-level unit activation state, values depend on unit type.\n4 loaded units listed.\n",
+    "versions": {
+      "fastcdr": "1.0.29",
+      "fastdds": "2.6.11",
+      "glibc": "2.35",
+      "native": "0.10.0-rbt.2",
+      "python": "3.10.12",
+      "rbt_sdk": "0.8.0",
+      "rclcpp": "16.0.19",
+      "rmw_fastrtps_cpp": "6.2.10",
+      "rmw_fastrtps_shared_cpp": "6.2.10",
+      "rosidl_generator_cpp": "3.1.9",
+      "sensor_msgs": "4.9.1"
+    }
+  },
+  "before": {
+    "architecture": "aarch64",
+    "binary_sha256": {
+      "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+      "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+      "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee",
+      "rbt_transport_bench": "c57d9a2bb44f0e64771ce370d74bdb15289f2ba175d93a284d7674cd0af56527",
+      "ros2_transport_bench": "2c5e93d8d234971d721f80ba73a60752550b9a3f1fec645dc704ce41fd39157a",
+      "standard_loan_probe": "d4a766596af6ea3d41094954dd9f30978c9019c1461a319931518605e0535348"
+    },
+    "build_type": "Release",
+    "client_date": "2026-10-31",
+    "compiler": "GCC 11.4.0",
+    "cpu_accounting_ticks_per_second": 100,
+    "cpu_affinity": [
+      3,
+      4
+    ],
+    "cpu_allowed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "cpuinfo": "processor\t: 0\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 1\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 2\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd46\nCPU revision\t: 1\n\nprocessor\t: 3\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd4d\nCPU revision\t: 0\n\nprocessor\t: 4\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x2\nCPU part\t: 0xd47\nCPU revision\t: 0\n\nprocessor\t: 5\nBogoMIPS\t: 38.40\nFeatures\t: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp flagm2 frint i8mm bf16 bti\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x1\nCPU part\t: 0xd4e\nCPU revision\t: 0",
+    "cpus": {
+      "0": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "0"
+      },
+      "1": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "1"
+      },
+      "2": {
+        "cpu_capacity": "280",
+        "cpufreq/cpuinfo_max_freq": "2016000",
+        "cpufreq/scaling_cur_freq": "2016000",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "2"
+      },
+      "3": {
+        "cpu_capacity": "855",
+        "cpufreq/cpuinfo_max_freq": "2803200",
+        "cpufreq/scaling_cur_freq": "2803200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "1"
+      },
+      "4": {
+        "cpu_capacity": "855",
+        "cpufreq/cpuinfo_max_freq": "2803200",
+        "cpufreq/scaling_cur_freq": "2803200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "2"
+      },
+      "5": {
+        "cpu_capacity": "1024",
+        "cpufreq/cpuinfo_max_freq": "3187200",
+        "cpufreq/scaling_cur_freq": "3187200",
+        "cpufreq/scaling_governor": "performance",
+        "topology/core_id": "0"
+      }
+    },
+    "device_model": "Qualcomm Technologies, Inc. KalamaP HDK ",
+    "host_date_utc": "2026-10-30T23:08:01Z",
+    "loadavg": "1.01 1.13 1.15 1/1200 1173746",
+    "measured_source_revision": "b76f35886a76d92a91cc9eccc3c5effd3b9bb059",
+    "meminfo": "MemTotal:       15543596 kB\nMemFree:         2957832 kB\nMemAvailable:   13300796 kB\nBuffers:           33344 kB\nCached:          6447048 kB\nSwapCached:         1892 kB\nActive:          4288028 kB\nInactive:        2296632 kB\nActive(anon):      50992 kB\nInactive(anon):    63060 kB\nActive(file):    4237036 kB\nInactive(file):  2233572 kB\nUnevictable:        9520 kB\nMlocked:               0 kB\nSwapTotal:       7753876 kB\nSwapFree:        6768532 kB\nDirty:               916 kB\nWriteback:            40 kB\nAnonPages:        112452 kB\nMapped:            62928 kB\nShmem:              9784 kB\nKReclaimable:    3993844 kB\nSlab:             627128 kB\nSReclaimable:     138368 kB\nSUnreclaim:       488760 kB\nKernelStack:       19300 kB\nShadowCallStack:    4852 kB\nPageTables:        22752 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    15525672 kB\nCommitted_AS:    7158916 kB\nVmallocTotal:   259653632 kB\nVmallocUsed:      120660 kB\nVmallocChunk:          0 kB\nPercpu:             6096 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:         630784 kB\nCmaFree:               0 kB",
+    "native_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "notes": [
+      "Installed ARM64 RBT SDK 0.8.0 from 2026-10-22; runtime source commit not embedded; actual library/header hashes retained.",
+      "Production services left running. No CPU isolation, service restart or governor change."
+    ],
+    "optimization": "-O3 -DNDEBUG",
+    "os_release": "PRETTY_NAME=\"Ubuntu 22.04.2 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.2 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\nAIDLUX_EDITION=linux\nROOTFS_VERSION=37",
+    "platform": "Linux-5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty-aarch64-with-glibc2.35",
+    "sdk_build_stamp": "2026-10-22T04:09:10+08:00\nLinux kalama 5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty #1 SMP PREEMPT Thu Mar 26 13:55:25 CST 2026 aarch64 aarch64 aarch64 GNU/Linux\nglibc 2.35\nc++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nrustc 1.98.1 (48a229cea 2026-09-01)\nrbt 0.8.0\nSDK 0.8.0\ncomposer 0.8.0\nfork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "sdk_source_commit": null,
+    "soc_id": "603",
+    "soc_machine": "QCS_KALAMAP",
+    "source_sha256": {
+      "harness/CMakeLists.txt": "c6cfeedcf57702ab114413180e69c9c7cf4d511bea01d58158b7382b1b7192de",
+      "harness/common.hpp": "dcfd7898f143b8158c7a310fbf3f5e487aaa10982cad842bd69955cbfabc099e",
+      "harness/config/loan.xml": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f",
+      "harness/config/shm.xml": "b513bbcc1c63ceea3b1d75e31151745cd9a6bcfdfae71e70787ab41f9d6001a6",
+      "harness/generated/cpp/rbt/transport_bench.hpp": "c43b8793bccf92c983e80dd7e129d52cd4a75ce2000a971acbee5cf86a894979",
+      "harness/msg/CloudFrame.msg": "c26dba7452e1a19fc2509f1d690290b80f27b629ffedb936e2078d0a02c4d1c9",
+      "harness/msg/ImuFrame.msg": "07f61cb689af826356f6035ef0e375fec88c9a053ca5e006080f4895060dfdb6",
+      "harness/msg/VideoFrame.msg": "74d42d06459ac4c0c9dd050d4909a04f90762643af95d31045a29d8403a1dc3f",
+      "harness/package.xml": "3e38172a0ebac27c4314553d7426d3e920a78bc7fa9ef4e6949265d424a4087a",
+      "harness/plot.py": "6b478799c88da716f41ea9a77445dd1a44d15897ee939e53b7b090ff4ed95521",
+      "harness/rbt_endpoint.cpp": "9e6b8cb4bd128c5531ba8205d66d7b9de01ae68dc281c582cc8bb82d89fdc04f",
+      "harness/ros2_endpoint.cpp": "808c0d5b2d68a25f0fcee77fcbc522c8b43fd5c279d9690f4fa70ec0b2a8b3eb",
+      "harness/run.py": "7cea759560bba361eb6a3ed28b4115c5f87da195c1a862220fe3cefe920c8d5d",
+      "harness/standard_loan_probe.cpp": "7f633a6d079528195154086c1e22a2b588af429a1e97396a25b1806498386ecd",
+      "harness/summarize.py": "045fd61d8131b975874ec6416e5cbd2c65a77f3470c169d6e838fc77859e46a8",
+      "harness/test_runner.py": "1a8a19f31374a7074f947c52637dcdbc1aa4c87c444f12882324f6ced0c73980",
+      "harness/test_summarize.py": "ba290efafdd20b12908ba3e5a558c8b76db8915281a2e8dcc95451cd2b35b908",
+      "harness/types/transport_bench.rbt": "076ebb215aef1d045cb30e3d0cfc6a4d75e2303d33f407f67ee06887159e9cd8",
+      "sdk/runtime.hpp": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c",
+      "sdk/stream.hpp": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091",
+      "sdk/types.hpp": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f",
+      "sdk/wait.hpp": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11"
+    },
+    "thermal": {
+      "thermal_zone0": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "aoss-0"
+      },
+      "thermal_zone1": {
+        "temp_millidegrees_celsius": "47500",
+        "type": "cpuss-0"
+      },
+      "thermal_zone10": {
+        "temp_millidegrees_celsius": "53100",
+        "type": "cpu-1-5"
+      },
+      "thermal_zone100": {
+        "temp_millidegrees_celsius": "4035",
+        "type": "vbat"
+      },
+      "thermal_zone101": {
+        "temp_millidegrees_celsius": "40000",
+        "type": "usb"
+      },
+      "thermal_zone102": {
+        "temp_millidegrees_celsius": "-40000",
+        "type": "wireless"
+      },
+      "thermal_zone103": {
+        "temp_millidegrees_celsius": "24000",
+        "type": "battery"
+      },
+      "thermal_zone11": {
+        "temp_millidegrees_celsius": "46700",
+        "type": "cpu-1-6"
+      },
+      "thermal_zone12": {
+        "temp_millidegrees_celsius": "47900",
+        "type": "cpu-1-7"
+      },
+      "thermal_zone13": {
+        "temp_millidegrees_celsius": "47100",
+        "type": "cpu-1-8"
+      },
+      "thermal_zone14": {
+        "temp_millidegrees_celsius": "45900",
+        "type": "cpu-1-9"
+      },
+      "thermal_zone15": {
+        "temp_millidegrees_celsius": "45900",
+        "type": "cpu-1-10"
+      },
+      "thermal_zone16": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "aoss-1"
+      },
+      "thermal_zone17": {
+        "temp_millidegrees_celsius": "48300",
+        "type": "cpu-0-0"
+      },
+      "thermal_zone18": {
+        "temp_millidegrees_celsius": "47900",
+        "type": "cpu-0-1"
+      },
+      "thermal_zone19": {
+        "temp_millidegrees_celsius": "47100",
+        "type": "cpu-0-2"
+      },
+      "thermal_zone2": {
+        "temp_millidegrees_celsius": "47100",
+        "type": "cpuss-1"
+      },
+      "thermal_zone20": {
+        "temp_millidegrees_celsius": "42800",
+        "type": "nspss-0"
+      },
+      "thermal_zone21": {
+        "temp_millidegrees_celsius": "43600",
+        "type": "nspss-1"
+      },
+      "thermal_zone22": {
+        "temp_millidegrees_celsius": "42000",
+        "type": "nspss-2"
+      },
+      "thermal_zone23": {
+        "temp_millidegrees_celsius": "41600",
+        "type": "nspss-3"
+      },
+      "thermal_zone24": {
+        "temp_millidegrees_celsius": "46300",
+        "type": "video"
+      },
+      "thermal_zone25": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "ddr"
+      },
+      "thermal_zone26": {
+        "temp_millidegrees_celsius": "42400",
+        "type": "mdmss-0"
+      },
+      "thermal_zone27": {
+        "temp_millidegrees_celsius": "41300",
+        "type": "mdmss-1"
+      },
+      "thermal_zone28": {
+        "temp_millidegrees_celsius": "42000",
+        "type": "mdmss-2"
+      },
+      "thermal_zone29": {
+        "temp_millidegrees_celsius": "42000",
+        "type": "mdmss-3"
+      },
+      "thermal_zone3": {
+        "temp_millidegrees_celsius": "47500",
+        "type": "cpuss-2"
+      },
+      "thermal_zone30": {
+        "temp_millidegrees_celsius": "42400",
+        "type": "camera-0"
+      },
+      "thermal_zone31": {
+        "temp_millidegrees_celsius": "44000",
+        "type": "camera-1"
+      },
+      "thermal_zone32": {
+        "temp_millidegrees_celsius": "43000",
+        "type": "aoss-2"
+      },
+      "thermal_zone33": {
+        "temp_millidegrees_celsius": "41800",
+        "type": "gpuss-0"
+      },
+      "thermal_zone34": {
+        "temp_millidegrees_celsius": "41400",
+        "type": "gpuss-1"
+      },
+      "thermal_zone35": {
+        "temp_millidegrees_celsius": "41800",
+        "type": "gpuss-2"
+      },
+      "thermal_zone36": {
+        "temp_millidegrees_celsius": "41400",
+        "type": "gpuss-3"
+      },
+      "thermal_zone37": {
+        "temp_millidegrees_celsius": "43000",
+        "type": "gpuss-4"
+      },
+      "thermal_zone38": {
+        "temp_millidegrees_celsius": "42600",
+        "type": "gpuss-5"
+      },
+      "thermal_zone39": {
+        "temp_millidegrees_celsius": "42600",
+        "type": "gpuss-6"
+      },
+      "thermal_zone4": {
+        "temp_millidegrees_celsius": "46700",
+        "type": "cpuss-3"
+      },
+      "thermal_zone40": {
+        "temp_millidegrees_celsius": "42600",
+        "type": "gpuss-7"
+      },
+      "thermal_zone5": {
+        "temp_millidegrees_celsius": "44800",
+        "type": "cpu-1-0"
+      },
+      "thermal_zone6": {
+        "temp_millidegrees_celsius": "45100",
+        "type": "cpu-1-1"
+      },
+      "thermal_zone7": {
+        "temp_millidegrees_celsius": "46700",
+        "type": "cpu-1-2"
+      },
+      "thermal_zone71": {
+        "temp_millidegrees_celsius": "43577",
+        "type": "pm8550_tz"
+      },
+      "thermal_zone72": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl0"
+      },
+      "thermal_zone73": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl1"
+      },
+      "thermal_zone74": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550-bcl-lvl2"
+      },
+      "thermal_zone75": {
+        "temp_millidegrees_celsius": "37070",
+        "type": "pm8550b_tz"
+      },
+      "thermal_zone76": {
+        "temp_millidegrees_celsius": "46703",
+        "type": "pm8550b_lite_tz"
+      },
+      "thermal_zone77": {
+        "temp_millidegrees_celsius": "562",
+        "type": "pm8550b-ibat-lvl0"
+      },
+      "thermal_zone78": {
+        "temp_millidegrees_celsius": "656",
+        "type": "pm8550b-ibat-lvl1"
+      },
+      "thermal_zone79": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl0"
+      },
+      "thermal_zone8": {
+        "temp_millidegrees_celsius": "47900",
+        "type": "cpu-1-3"
+      },
+      "thermal_zone80": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl1"
+      },
+      "thermal_zone81": {
+        "temp_millidegrees_celsius": "0",
+        "type": "pm8550b-bcl-lvl2"
+      },
+      "thermal_zone82": {
+        "temp_millidegrees_celsius": "0",
+        "type": "socd"
+      },
+      "thermal_zone83": {
+        "temp_millidegrees_celsius": "37037",
+        "type": "pm8550ve_f_tz"
+      },
+      "thermal_zone84": {
+        "temp_millidegrees_celsius": "41425",
+        "type": "pm8550vs_c_tz"
+      },
+      "thermal_zone85": {
+        "temp_millidegrees_celsius": "39946",
+        "type": "pm8550vs_d_tz"
+      },
+      "thermal_zone86": {
+        "temp_millidegrees_celsius": "41324",
+        "type": "pm8550vs_e_tz"
+      },
+      "thermal_zone87": {
+        "temp_millidegrees_celsius": "40114",
+        "type": "pm8550vs_g_tz"
+      },
+      "thermal_zone9": {
+        "temp_millidegrees_celsius": "49900",
+        "type": "cpu-1-4"
+      },
+      "thermal_zone92": {
+        "temp_millidegrees_celsius": "41168",
+        "type": "skin-msm-therm"
+      },
+      "thermal_zone93": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "cam-flash-therm"
+      },
+      "thermal_zone94": {
+        "temp_millidegrees_celsius": "41083",
+        "type": "wlan-therm"
+      },
+      "thermal_zone95": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "pa-therm-1"
+      },
+      "thermal_zone96": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "rear-tof-therm"
+      },
+      "thermal_zone97": {
+        "temp_millidegrees_celsius": "41050",
+        "type": "usb-therm"
+      },
+      "thermal_zone98": {
+        "temp_millidegrees_celsius": "-40960",
+        "type": "wls-therm"
+      },
+      "thermal_zone99": {
+        "temp_millidegrees_celsius": "40914",
+        "type": "xo-therm"
+      }
+    },
+    "top_processes": [
+      "    PID %CPU COMMAND",
+      "1954721  8.1 rbt_dm_imu",
+      "1173657  3.5 sshd",
+      "3515301  2.7 graspgenx_rbt_w",
+      "   1887  2.3 init_qti_displa",
+      " 507456  2.1 dm_h3510_node",
+      " 506679  2.0 irq/385-spi1.0",
+      "1173697  1.5 bash",
+      "   1348  1.1 polkitd",
+      "     16  1.0 rcuog/0",
+      "     15  0.9 rcu_preempt",
+      "1169939  0.8 kworker/u12:4-ufs_clkscaling_0",
+      "1123167  0.7 kworker/u12:2-memlat_wq",
+      "1162197  0.7 kworker/u12:0-ufs_clkscaling_0",
+      "1092658  0.6 kworker/u12:1-qc_ufs_qos_swq",
+      "1165843  0.6 kworker/0:0-cgroup_destroy",
+      "     90  0.5 kswapd0",
+      "1111729  0.5 kworker/u12:3-bwmon_wq",
+      "1172239  0.5 kworker/0:3-events_long",
+      "     17  0.4 rcuop/0"
+    ],
+    "user_running_services": "  UNIT                           LOAD   ACTIVE SUB     DESCRIPTION\n  dbus.service                   loaded active running D-Bus User Message Bus\n  pipewire-media-session.service loaded active running PipeWire Media Session Manager\n  pipewire.service               loaded active running PipeWire Multimedia Service\n  rbt-dm-imu.service             loaded active running RBT native DM IMU publisher\n\nLOAD   = Reflects whether the unit definition was properly loaded.\nACTIVE = The high-level unit activation state, i.e. generalization of SUB.\nSUB    = The low-level unit activation state, values depend on unit type.\n4 loaded units listed.\n",
+    "versions": {
+      "fastcdr": "1.0.29",
+      "fastdds": "2.6.11",
+      "glibc": "2.35",
+      "native": "0.10.0-rbt.2",
+      "python": "3.10.12",
+      "rbt_sdk": "0.8.0",
+      "rclcpp": "16.0.19",
+      "rmw_fastrtps_cpp": "6.2.10",
+      "rmw_fastrtps_shared_cpp": "6.2.10",
+      "rosidl_generator_cpp": "3.1.9",
+      "sensor_msgs": "4.9.1"
+    }
+  },
+  "schema_version": 1
+}
