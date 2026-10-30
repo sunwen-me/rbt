@@ -9,7 +9,12 @@
 #include <fastdds/dds/publisher/Publisher.hpp>
 #include <fastdds/dds/subscriber/DataReader.hpp>
 #include <fastdds/dds/subscriber/Subscriber.hpp>
+#if __has_include(<fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.hpp>)
 #include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.hpp>
+#else
+// Fast DDS 2.x (ROS 2 Humble) exports the same descriptor in a .h header.
+#include <fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.h>
+#endif
 #include <rcl/error_handling.h>
 #include <rcl/publisher.h>
 #include <rcl/subscription.h>
@@ -379,10 +384,9 @@ void run_subscriber(const Options& options, Window& window, Metrics& metrics,
         if (wait_result.kind() != rclcpp::WaitResultKind::Ready) {
             continue;
         }
-        const auto ready_subscription = wait_result.next_ready_subscription();
-        if (!ready_subscription || ready_subscription.get() != subscription.get()) {
-            continue;
-        }
+        // This wait set owns exactly one subscription. Take directly after a
+        // ready wakeup; an empty/spurious wakeup is handled by take returning false.
+        // This also supports Humble, which lacks next_ready_subscription().
 
         for (std::size_t drained = 0U; drained < 64U; ++drained) {
             if (use_loan) {

@@ -39,6 +39,8 @@ ROS_ENV_KEYS = (
     "ROS_DISABLE_LOANED_MESSAGES",
     "ROS_DOMAIN_ID",
     "ROS_AUTOMATIC_DISCOVERY_RANGE",
+    "ROS_LOCALHOST_ONLY",
+    "FASTRTPS_DEFAULT_PROFILES_FILE",
 )
 CONFLICTING_FASTDDS_ENV = (
     "FASTDDS_BUILTIN_TRANSPORTS",
@@ -415,6 +417,7 @@ def process_environment(base_env: dict[str, str], mode: str, domain_id: int, ros
         environment.pop(key, None)
     environment["ROS_DOMAIN_ID"] = str(domain_id)
     environment["ROS_AUTOMATIC_DISCOVERY_RANGE"] = "SYSTEM_DEFAULT"
+    environment["ROS_LOCALHOST_ONLY"] = "0"
     if mode == "rbt":
         # The RBT baseline has no Fast DDS profile; remove inherited ROS selector values.
         environment.pop("RMW_IMPLEMENTATION", None)
@@ -423,6 +426,8 @@ def process_environment(base_env: dict[str, str], mode: str, domain_id: int, ros
     environment["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
     environment["RMW_FASTRTPS_USE_QOS_FROM_XML"] = "1"
     environment["FASTDDS_DEFAULT_PROFILES_FILE"] = str(ros_config)
+    # Fast DDS 2.x uses the historical spelling; both select the same XML.
+    environment["FASTRTPS_DEFAULT_PROFILES_FILE"] = str(ros_config)
     environment["ROS_DISABLE_LOANED_MESSAGES"] = "1" if mode == "shm" else "0"
     return environment
 
@@ -1041,6 +1046,12 @@ def launch_trial(
                 start_new_session=True,
                 preexec_fn=child_setup,
             )
+            if role == "pub":
+                # RBT subscribers open an existing publisher readiness sidecar.
+                # Serialize initialization, before the common warmup/measurement.
+                wait_for_ready(
+                    {role: processes[role]}, {role: ready_files[role]}, trial
+                )
         trial["pids"] = {role: process.pid for role, process in processes.items()}
         ready = wait_for_ready(processes, ready_files, trial)
         validate_ready_pair(ready, mode)

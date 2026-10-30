@@ -16,6 +16,15 @@ import run
 
 
 class RunnerParsingTests(unittest.TestCase):
+    def test_ros_profile_selectors_support_fastdds_2_and_3(self) -> None:
+        environment = run.process_environment(
+            {"ROS_LOCALHOST_ONLY": "1", "FASTRTPS_DEFAULT_PROFILES_FILE": "/wrong.xml"},
+            "loan", 180, Path("/trial.xml")
+        )
+        self.assertEqual(environment["FASTDDS_DEFAULT_PROFILES_FILE"], "/trial.xml")
+        self.assertEqual(environment["FASTRTPS_DEFAULT_PROFILES_FILE"], "/trial.xml")
+        self.assertEqual(environment["ROS_LOCALHOST_ONLY"], "0")
+
     def test_topic_profile_instantiation_preserves_generic_defaults(self) -> None:
         expected_transport = {
             ("shm", "imu"): {
@@ -387,6 +396,19 @@ class ProcessCleanupTests(unittest.TestCase):
 
 
 class StartupFailureTests(unittest.TestCase):
+    def test_publisher_only_readiness_barrier_waits_for_sidecar_creation(self) -> None:
+        process = mock.Mock()
+        process.poll.return_value = None
+        ready = {"ready": True}
+        with mock.patch.object(run, "read_ready", side_effect=[None, ready]), mock.patch.object(
+            run.time, "sleep"
+        ) as sleep:
+            result = run.wait_for_ready(
+                {"pub": process}, {"pub": Path("pub.ready.json")}, {}, timeout_seconds=0.5
+            )
+        self.assertEqual(result, {"pub": ready})
+        sleep.assert_called_once()
+
     def test_early_exit_without_ready_file_reports_endpoint_exit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             process = mock.Mock()
