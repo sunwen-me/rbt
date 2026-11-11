@@ -10,6 +10,9 @@ The [2026-10-29 measured report](results/2026-10-29/README.md) includes all
 27 accepted trials, CPU/PSS ranges and the standard-message loan probe.
 The [2026-10-31 QCS8550 report](results/2026-10-31-qcs8550/README.md) adds
 an ARM64 board run using ROS 2 Humble / Fast DDS 2.6.11.
+The [2026-11-10 Raspberry Pi 4 report](results/2026-11-10-raspberrypi4/README.md)
+adds an ARM64 run using ROS 2 Lyrical / Fast DDS 3.6.2, with retained
+environment telemetry and SDK provenance.
 
 ## Workload
 

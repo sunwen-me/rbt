@@ -1,0 +1,390 @@
+{
+  "date": "2026-11-10",
+  "experiment": "Raspberry Pi 4 video transport memset diagnosis",
+  "initial_rbt_and_ros_loan_baseline": {
+    "configuration": {
+      "binary_sha256": {
+        "rbt": "c7be0403641704e5ec0482b38a0613b126706e16c8609b5525044a258632984a",
+        "ros": "09a97794b1878156e52c20d36d674518840993588ecc584d38fa6c0cb90eac1c"
+      },
+      "cases": [
+        "video"
+      ],
+      "cpus": [
+        2,
+        3
+      ],
+      "modes": [
+        "rbt",
+        "loan"
+      ],
+      "profile_sha256": {
+        "loan": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f"
+      },
+      "rbt_executable": "rbt_transport_bench",
+      "repetitions": 1,
+      "ros_executable": "ros2_transport_bench",
+      "ros_setup": null,
+      "rss_caveat": "sum RSS can double-count shared mappings; PSS is the primary aggregate",
+      "seconds": 5.0,
+      "warmup": 1.0
+    },
+    "exit_code": 0,
+    "status": "completed",
+    "trials": [
+      {
+        "drops": 0,
+        "invalid_samples": 0,
+        "published": 150,
+        "publisher_cpu_percent": 11.811788278094706,
+        "publisher_memset": {
+          "nonzero_6220800": {
+            "bytes": 1119744000,
+            "calls": 180,
+            "cpu_ns": 354926416,
+            "skipped": 0
+          },
+          "zero_6220816": {
+            "bytes": 1119746880,
+            "calls": 180,
+            "cpu_ns": 352829888,
+            "skipped": 0
+          }
+        },
+        "received": 150,
+        "shared_alias_matches": 8,
+        "status": "valid",
+        "subscriber_cpu_percent": 0.40039960264727814,
+        "total_cpu_percent": 12.212187880741984,
+        "trial": 1,
+        "valid": true
+      },
+      {
+        "drops": 0,
+        "invalid_samples": 0,
+        "published": 150,
+        "publisher_cpu_percent": 7.4074986256737665,
+        "publisher_memset": {
+          "nonzero_6220800": {
+            "bytes": 1119744000,
+            "calls": 180,
+            "cpu_ns": 428411259,
+            "skipped": 0
+          },
+          "zero_6220816": {
+            "bytes": 0,
+            "calls": 0,
+            "cpu_ns": 0,
+            "skipped": 0
+          }
+        },
+        "received": 150,
+        "shared_alias_matches": 8,
+        "status": "valid",
+        "subscriber_cpu_percent": 0.8008106622350019,
+        "total_cpu_percent": 8.208309287908769,
+        "trial": 2,
+        "valid": true
+      }
+    ]
+  },
+  "instrumentation": {
+    "count_scope": "Includes process startup and 1-second warmup; 180 calls represent 30 warmup plus 150 measured frames.",
+    "duration_clock": "CLOCK_THREAD_CPUTIME_ID",
+    "exact_size_buckets_bytes": [
+      6220816,
+      6220800
+    ],
+    "minimum_recorded_size_bytes": 1000000,
+    "native_build": "AArch64 gcc -shared -fPIC -O2 -fno-builtin -fno-tree-loop-distribute-patterns -Wall -Wextra -Werror -ldl",
+    "shared_library_sha256": "c7a47aa611af57d56800890193e3b1ccf18b151a1720908693bccbc0fd03bfcd",
+    "skip_guard": "Optional; only rbt_transport_bench publisher, memset(value=0,size=6220816)",
+    "source_sha256": "0bfe0129a93c2df788ceefb9a1c477829df7e66b31e20576c4cf160af0969173"
+  },
+  "interpretation_evidence": {
+    "all_six_comparison_trials_valid_150_published_150_received_8_alias_matches": true,
+    "baseline_rbt_publisher_payload_fill_calls": 180,
+    "baseline_rbt_publisher_zero_fill_calls": 180,
+    "limitations": "LD_PRELOAD and clock sampling add overhead; compare instrumented runs. Skip is synthetic diagnostic behavior, not a production change.",
+    "ros_loan_publisher_large_zero_fill_calls": 0,
+    "skip_run_payload_fill_calls_preserved_per_trial": 180,
+    "skip_run_zero_fill_calls_skipped_per_trial": 180
+  },
+  "original_binary_sha256": {
+    "rbt": "c7be0403641704e5ec0482b38a0613b126706e16c8609b5525044a258632984a",
+    "ros": "09a97794b1878156e52c20d36d674518840993588ecc584d38fa6c0cb90eac1c"
+  },
+  "rbt_zero_fill_skip_comparison": {
+    "rbt-baseline-3": {
+      "exit_code": 0,
+      "publisher_cpu_percent_median": 12.011988319898112,
+      "status": "completed",
+      "total_cpu_percent_median": 12.212193829132053,
+      "trials": [
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 12.011993930293823,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 355775823,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 353490647,
+              "skipped": 0
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.20019989883823036,
+          "total_cpu_percent": 12.212193829132053,
+          "trial": 1,
+          "valid": true
+        },
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 11.811903552111772,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 358607023,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 356063119,
+              "skipped": 0
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.400403510241077,
+          "total_cpu_percent": 12.21230706235285,
+          "trial": 2,
+          "valid": true
+        },
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 12.011988319898112,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 364308920,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 358646667,
+              "skipped": 0
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.2001998053316352,
+          "total_cpu_percent": 12.212188125229748,
+          "trial": 3,
+          "valid": true
+        }
+      ],
+      "configuration": {
+        "binary_sha256": {
+          "rbt": "c7be0403641704e5ec0482b38a0613b126706e16c8609b5525044a258632984a",
+          "ros": "09a97794b1878156e52c20d36d674518840993588ecc584d38fa6c0cb90eac1c"
+        },
+        "cases": [
+          "video"
+        ],
+        "cpus": [
+          2,
+          3
+        ],
+        "modes": [
+          "rbt"
+        ],
+        "profile_sha256": {},
+        "rbt_executable": "rbt_transport_bench",
+        "repetitions": 3,
+        "ros_executable": "ros2_transport_bench",
+        "ros_setup": null,
+        "rss_caveat": "sum RSS can double-count shared mappings; PSS is the primary aggregate",
+        "seconds": 5.0,
+        "warmup": 1.0
+      }
+    },
+    "rbt-skip-3": {
+      "exit_code": 0,
+      "publisher_cpu_percent_median": 6.4064143621598175,
+      "status": "completed",
+      "total_cpu_percent_median": 7.006882393917178,
+      "trials": [
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 6.406292474438563,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 382493591,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 0,
+              "skipped": 180
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.6005899194786153,
+          "total_cpu_percent": 7.006882393917178,
+          "trial": 1,
+          "valid": true
+        },
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 6.4064143621598175,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 376426878,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 0,
+              "skipped": 180
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.6006013464524829,
+          "total_cpu_percent": 7.0070157086123,
+          "trial": 2,
+          "valid": true
+        },
+        {
+          "drops": 0,
+          "invalid_samples": 0,
+          "published": 150,
+          "publisher_cpu_percent": 6.606627229335688,
+          "publisher_memset": {
+            "nonzero_6220800": {
+              "bytes": 1119744000,
+              "calls": 180,
+              "cpu_ns": 387552673,
+              "skipped": 0
+            },
+            "zero_6220816": {
+              "bytes": 1119746880,
+              "calls": 180,
+              "cpu_ns": 0,
+              "skipped": 180
+            }
+          },
+          "received": 150,
+          "shared_alias_matches": 8,
+          "status": "valid",
+          "subscriber_cpu_percent": 0.20020082513138449,
+          "total_cpu_percent": 6.806828054467072,
+          "trial": 3,
+          "valid": true
+        }
+      ],
+      "configuration": {
+        "binary_sha256": {
+          "rbt": "c7be0403641704e5ec0482b38a0613b126706e16c8609b5525044a258632984a",
+          "ros": "09a97794b1878156e52c20d36d674518840993588ecc584d38fa6c0cb90eac1c"
+        },
+        "cases": [
+          "video"
+        ],
+        "cpus": [
+          2,
+          3
+        ],
+        "modes": [
+          "rbt"
+        ],
+        "profile_sha256": {},
+        "rbt_executable": "rbt_transport_bench",
+        "repetitions": 3,
+        "ros_executable": "ros2_transport_bench",
+        "ros_setup": null,
+        "rss_caveat": "sum RSS can double-count shared mappings; PSS is the primary aggregate",
+        "seconds": 5.0,
+        "warmup": 1.0
+      }
+    }
+  },
+  "schema_version": 1,
+  "formal_result_policy": "Default SDK and benchmark behavior retained; diagnostic skip trials are excluded from formal tables, CSV, summary and charts.",
+  "formal_video_cpu_percent_medians": {
+    "rbt": {
+      "publisher_cpu_percent": 12.470822748758927,
+      "subscriber_cpu_percent": 0.33344445852296595,
+      "total_cpu_percent": 12.804267207281892
+    },
+    "loan": {
+      "publisher_cpu_percent": 7.135708680407429,
+      "subscriber_cpu_percent": 0.8002700943045569,
+      "total_cpu_percent": 7.935975074471814
+    }
+  },
+  "source_evidence": {
+    "rbt_loan": "sdk/cpp/include/rbt/stream.hpp:996-1010",
+    "native_sdk_header": "include/iceoryx2/v0.10.0/iox2/publisher.hpp",
+    "native_sdk_header_sha256": "33c501d38474dd9770dec32c43e31139938658bb64009c96f467c4427d0d5f1c",
+    "native_initialization": "new (&sample->payload_mut()) Payload();",
+    "payload_fill": "benchmarks/ros2_transport/common.hpp:422-432",
+    "ros_loan": "benchmarks/ros2_transport/ros2_endpoint.cpp:57-68,285-301",
+    "target_zero_memset_call_offset": "0x5bcd8",
+    "zero_bytes_per_video_frame": 6220816,
+    "logical_extra_zero_bytes_per_second_at_30_hz": 186624480,
+    "traffic_note": "Logical byte count, not measured DRAM traffic."
+  },
+  "raw_artifacts": {
+    "local_directory": "output/ros2-transport-benchmark/raspberrypi4-20261110/video-cpu-diagnosis/",
+    "pi_directory": "/home/pi/rbt-transport-bench-20261110/video-cpu-diagnosis/"
+  },
+  "preserved_formal_artifact_sha256": {
+    "summary.json": "8cd05c178f7788538c7cdccf7bceb215238317bd900d53b6eefa3badb964d871",
+    "cpu-usage-zh.svg": "22e217ef59059ee9bc059bb27ee51fabb834bbb5519ab1e974dfdf245f124474",
+    "environment.json": "76f3fd226910764953ca4d5042c36bb5e91684a16bdbcef4f1fd9c0ad4e857b1",
+    "standard-loan-probe.jsonl": "c1fa4e014eab9170cd958ba2241ddd10da492d63814e13fb2095bf86af7f7e01",
+    "trials.csv": "c54dae06f9e1d9cb474ad9aa0d8f0fbaa81dfe4de3d7ab436c9f6e289e3706e3",
+    "memory-pss.png": "8d9b98871ec78ba9c088e6ca51e0b1ee1c27bd550ad76184c9409e6a8ad21703",
+    "memory-pss-zh.svg": "1e5329d8bc759b3262c610fa16c13861dd2cc7bc2905a09b67b3b86972c3703e",
+    "memory-pss-zh.png": "a8d514efdc14e12cc2016c2301dfaced1fc3b0b3b2ed16a8bd13947f60fae932",
+    "cpu-usage.png": "b67def2ac32278bab3884005360230f506bdbaa0d65e1af59820fdd10bb9f39d",
+    "memory-pss.svg": "d512026648549a96b8f4ad454246648713e6b0a4975eab8901efc77b53dbce4c",
+    "cpu-usage.svg": "3317a07170b6711f0be769c4f2d52fa583ae4efa5339ac4bfa81c95efb9beeef",
+    "cpu-usage-zh.png": "aef4ecab13ff31f50b7f9ad11f8835c80a8039d08cc65099abddb2bf5987a14b",
+    "environment-samples.jsonl": "e5d95f8b231c031e3dcde5c04e324c87d3d48f809fe90600b4a23426c58fd048"
+  }
+}

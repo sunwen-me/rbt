@@ -130,6 +130,31 @@ RBT SDK 0.8.0 与 ROS 2 Lyrical / Fast DDS 3.6.2，在 Intel Core Ultra 5 125H�
 
 [QCS8550 完整报告、逐轮数据与复现方法](benchmarks/ros2_transport/results/2026-10-31-qcs8550/README.md)
 
+### Raspberry Pi 4 板端 · ARM64
+
+2026-11-10 在 Raspberry Pi 4 Model B Rev 1.2（Ubuntu 26.04、Linux 7.0.0-1009-raspi、ROS 2 Lyrical / Fast DDS 3.6.2）完成同一组 27 轮实验。两个端点允许使用 CPU 2、3，保持默认 `ondemand` governor；每轮预热 3 秒、测量 15 秒，重复 3 次并轮换模式顺序。表中为三次试验的中位数：**两进程 CPU 合计 / PSS 内存合计（MiB）**。
+
+| 工作负载 | RBT 原生 loan | ROS 2 SHM（拷贝） | ROS 2 loan + Data Sharing |
+|---|---:|---:|---:|
+| IMU 尺寸 · 256 B · 200 Hz | 2.67% / **5.99** | 5.74% / 72.72 | 4.80% / 74.30 |
+| 点云尺寸 · 1.60 MB · 10 Hz | 1.40% / **7.49** | 4.47% / 133.75 | 1.20% / 79.77 |
+| 原始视频尺寸 · 1080p RGB8 · 30 Hz | 12.80% / **11.90** | 38.48% / 323.03 | 7.94% / 92.96 |
+
+27/27 轮有效，均达到目标频率、投递率 100%；RBT 与 ROS loan 每轮均验证 8 个共享缓冲区地址样本。此配置下 RBT 的 PSS 较低；RBT 的 IMU CPU 中位数更低，点云场景 ROS loan 略低，视频场景 ROS loan 明显低于 RBT。标准 `sensor_msgs` 的 loan 能力探测均报告不支持；测试使用的是合成定长消息，不是实际传感器流。板端 sysfs 遥测记录的温度为 38.946–43.816 °C、CPU 频率为 600 MHz–1.5 GHz；固件 throttling 标志不可读取，报告不据此判断是否发生 throttling。
+
+视频 CPU 差距主要来自 RBT 默认 `loan()` 在填充数据前先初始化整帧；独立诊断确认了这次额外清零的成本。这里保留原始接口行为及正式成绩，诊断对照仅用于解释原因，详见[视频 CPU 原因与证据](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/README.md#why-video-cpu-is-higher-than-ros-loan)。
+
+<details>
+<summary>查看 Raspberry Pi 4 CPU 与内存图表</summary>
+
+![Raspberry Pi 4 两进程 CPU 合计](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/cpu-usage-zh.svg)
+
+![Raspberry Pi 4 两进程 PSS 合计](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/memory-pss-zh.svg)
+
+</details>
+
+[Raspberry Pi 4 完整报告、逐轮数据与环境遥测](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/README.md)
+
 ## 文档
 
 | 从这里开始 | 深入使用 |

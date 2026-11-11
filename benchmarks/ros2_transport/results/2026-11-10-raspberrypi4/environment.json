@@ -1,0 +1,1096 @@
+{
+  "schema_version": 2,
+  "controller_test_date": "2026-11-10",
+  "source_revision": "ec20ae3ff3c50c581a892e79a53b0a8c1767b350",
+  "board": {
+    "model": "Raspberry Pi 4 Model B Rev 1.2",
+    "architecture": "aarch64",
+    "os": "Ubuntu 26.04 LTS",
+    "kernel": "7.0.0-1009-raspi",
+    "glibc": "2.43",
+    "total_memory_kib": 3869652,
+    "page_size_bytes": 4096,
+    "page_size_source": "getconf PAGESIZE"
+  },
+  "software": {
+    "rbt_sdk": "0.8.0",
+    "ros_distribution": "Lyrical",
+    "rclcpp": "32.0.3-1resolute.20260915.071541",
+    "rmw_fastrtps_cpp": "9.4.10-1resolute.20260915.052709",
+    "rmw_fastrtps_shared_cpp": "9.4.10-1resolute.20260915.052019",
+    "fastdds": "3.6.2-1resolute.20260729.000645",
+    "fastcdr": "2.3.6-1resolute.20260728.232144",
+    "sensor_msgs": "5.9.3-1resolute.20260915.042131",
+    "gxx": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "cmake": "cmake version 4.2.3",
+    "python": "Python 3.14.4"
+  },
+  "build": {
+    "type": "Release",
+    "parallel_jobs": 2,
+    "build_log": "../../../../output/ros2-transport-benchmark/raspberrypi4-20261110/build.log",
+    "harness_unit_tests": "23 passed"
+  },
+  "benchmark": {
+    "cases": [
+      {
+        "name": "imu",
+        "payload_bytes": 256,
+        "target_rate_hz": 200,
+        "samples_per_trial": 3000
+      },
+      {
+        "name": "cloud",
+        "payload_bytes": 1600000,
+        "target_rate_hz": 10,
+        "samples_per_trial": 150
+      },
+      {
+        "name": "video",
+        "payload_bytes": 6220800,
+        "target_rate_hz": 30,
+        "samples_per_trial": 450
+      }
+    ],
+    "payload_prefix_bytes": 16,
+    "warmup_seconds": 3,
+    "measurement_seconds": 15,
+    "repetitions": 3,
+    "mode_order": "rotated",
+    "endpoint_cpu_affinity": [
+      2,
+      3
+    ],
+    "cpu_policy": "policy0 controls CPUs 0-3; ondemand governor; test did not change governor or frequency policy",
+    "timing_clock": "CLOCK_MONOTONIC"
+  },
+  "formal_validation": {
+    "status": "completed",
+    "trial_count": 27,
+    "valid_trial_count": 27,
+    "sample_counts_per_trial": {
+      "imu": 3000,
+      "cloud": 150,
+      "video": 450
+    },
+    "delivery_ratio": 1.0,
+    "drops": 0,
+    "duplicates": 0,
+    "invalid_samples": 0,
+    "sequence_gaps": 0,
+    "regressions": 0,
+    "shared_alias_matches_per_rbt_and_ros_loan_trial": 8,
+    "shared_alias_matches_per_shm_trial": 0,
+    "native_loan_counts_match_samples": true,
+    "standard_sensor_msgs_loan_supported": false
+  },
+  "telemetry": {
+    "sample_count": 502,
+    "sample_interval_seconds": 1,
+    "span_seconds": 501.0,
+    "cpu_frequency_khz": {
+      "minimum": 600000,
+      "maximum": 1500000,
+      "samples": 502
+    },
+    "cpu_governor": "ondemand",
+    "cpufreq_policy": "policy0; CPUs 0-3",
+    "cpu_thermal_zone_celsius": {
+      "sensor": "thermal_zone0 cpu-thermal",
+      "minimum": 38.946,
+      "maximum": 43.816,
+      "samples": 502
+    },
+    "sysfs_throttling": {
+      "available": false,
+      "note": "No sysfs throttling candidates were exposed in the snapshots or telemetry."
+    },
+    "firmware_throttling": {
+      "available": false,
+      "note": "vcgencmd cannot access /dev/vcio; throttle flags are unavailable."
+    }
+  },
+  "clock": {
+    "setup_note": "The board clock was initially reported unsynchronized during setup and later synchronized automatically by chrony; no manual time change was made.",
+    "formal_before_ntp_synchronized": "yes",
+    "formal_after_ntp_synchronized": "yes",
+    "formal_before_board_local": "2026-11-10T17:23:58+08:00",
+    "formal_after_board_local": "2026-11-10T17:32:21+08:00",
+    "elapsed_timing_uses": "CLOCK_MONOTONIC"
+  },
+  "sdk_provenance": {
+    "version": "0.8.0",
+    "copied_from": "aidlux@192.168.1.232:/home/aidlux/.local/opt/rbt-sdk-0.8.0-linux-aarch64",
+    "copied_unchanged": true,
+    "relocation_required": false,
+    "tree_manifest_sha256": "eeb4e63e03e2f9ba30a832f26683d1b41d7a685625122f0280bd781357f96004",
+    "tree_file_count": 3288,
+    "headers_match_framework": true,
+    "original_build_stamp": "2026-10-22T04:09:10+08:00",
+    "original_compiler": "c++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+    "runtime_source_commit": null,
+    "native_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "sdk_binary_sha256": {
+      "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+      "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+      "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee"
+    }
+  },
+  "benchmark_binary_sha256": {
+    "rbt": "c7be0403641704e5ec0482b38a0613b126706e16c8609b5525044a258632984a",
+    "ros": "09a97794b1878156e52c20d36d674518840993588ecc584d38fa6c0cb90eac1c"
+  },
+  "loan_probe_binary_sha256": "d38f75954fc175e566a3d446bfc3bb1814d079c8c0b8a08e66bf633c3f88734f",
+  "profile_sha256": {
+    "loan": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f",
+    "shm": "b513bbcc1c63ceea3b1d75e31151745cd9a6bcfdfae71e70787ab41f9d6001a6"
+  },
+  "before": {
+    "architecture": "aarch64",
+    "background_process_snapshot_top_40": [
+      "PID    PPID  NI PRI PSR %CPU %MEM COMMAND         COMMAND",
+      "   7847    7837   0  19   3 45.2  0.6 python3         python3 /home/pi/rbt-transport-bench-20261110/capture_environment.py --phase before-formal --output /home/pi/rbt-transport-bench-20261110/formal-environment-before.json",
+      "   7852       1   0  19   3 36.6  0.1 systemd-timedat /usr/lib/systemd/systemd-timedated",
+      "   7837    1998   0  19   2  0.9  0.1 bash            bash /home/pi/rbt-transport-bench-20261110/run_matrix.sh formal",
+      "      1       0   0  19   2  0.7  0.4 systemd         /usr/lib/systemd/systemd --system --deserialize=8 fixrtc",
+      "   5083       1   0  19   2  0.6  2.0 fwupd           /usr/libexec/fwupd/fwupd",
+      "   1998    1934   0  19   2  0.4  0.2 sshd-session    sshd-session: pi@notty",
+      "     59       2 -20  39   3  0.3  0.0 kworker/u17:0-b [kworker/u17:0-brcmf_wq/mmc1:0001:1]",
+      "   1405       1   0  19   0  0.2  0.9 snapd           /snap/snapd/current/usr/lib/snapd/snapd",
+      "     49       2   0  19   0  0.1  0.0 kworker/u16:2-e [kworker/u16:2-events_power_efficient]",
+      "      9       2   0  19   0  0.1  0.0 kworker/0:0-rcu [kworker/0:0-rcu_gp]",
+      "    415       2   0  19   3  0.1  0.0 jbd2/mmcblk0p2- [jbd2/mmcblk0p2-8]",
+      "   1395       1   0  19   1  0.1  0.1 dbus-daemon     @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only",
+      "   2296       2   0  19   3  0.0  0.0 kworker/3:3-eve [kworker/3:3-events]",
+      "   1923       2   0  19   3  0.0  0.0 kworker/3:2-eve [kworker/3:2-events]",
+      "   7494       2   0  19   2  0.0  0.0 kworker/2:2-eve [kworker/2:2-events]",
+      "   6641    6610   0  19   3  0.0  0.3 chronyd         /usr/sbin/chronyd -n -F 1",
+      "   1922       2   0  19   2  0.0  0.0 kworker/2:0-eve [kworker/2:0-events]",
+      "   2092       2   0  19   1  0.0  0.0 kworker/1:3-eve [kworker/1:3-events]",
+      "   5270       2   0  19   1  0.0  0.0 kworker/1:1-eve [kworker/1:1-events]",
+      "   6639       1   0  19   0  0.0  0.3 systemd-resolve /usr/lib/systemd/systemd-resolved",
+      "   6631       1   0  19   3  0.0  0.5 polkitd         /usr/lib/polkit-1/polkitd --no-debug --log-level=notice",
+      "     52       2   0  19   2  0.0  0.0 kworker/2:1-eve [kworker/2:1-events]",
+      "     15       2   0  19   0  0.0  0.0 rcu_preempt     [rcu_preempt]",
+      "   2297       2 -20  39   0  0.0  0.0 kworker/0:2H-mm [kworker/0:2H-mmc_complete]",
+      "   6677       1   0  19   3  0.0  0.5 ModemManager    /usr/sbin/ModemManager",
+      "     83       2   0  19   1  0.0  0.0 kworker/1:2-eve [kworker/1:2-events]",
+      "   6663       1   0  19   1  0.0  0.2 systemd-udevd   /usr/lib/systemd/systemd-udevd",
+      "   1591       1   0  19   2  0.0  0.9 unattended-upgr /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal",
+      "     51       2   0  19   3  0.0  0.0 kworker/u16:3-t [kworker/u16:3-thermal_events]",
+      "   1399       1   0  19   0  0.0  0.7 networkd-dispat /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers",
+      "   6695       1   0  19   0  0.0  0.3 systemd-network /usr/lib/systemd/systemd-networkd",
+      "     24       2 -20  39   1  0.0  0.0 kworker/1:0H-kb [kworker/1:0H-kblockd]",
+      "   6487       2   0  19   0  0.0  0.0 kworker/0:1-eve [kworker/0:1-events]",
+      "   1409       1   0  19   0  0.0  0.2 systemd-logind  /usr/lib/systemd/systemd-logind",
+      "   6715       1  -1  20   0  0.0  0.3 systemd-journal /usr/lib/systemd/systemd-journald",
+      "   1811       1   0  19   1  0.0  0.3 systemd         /usr/lib/systemd/systemd --user --deserialize=8",
+      "   6681       1   0  19   2  0.0  0.7 udisksd         /usr/libexec/udisks2/udisksd",
+      "   7536       2   0  19   3  0.0  0.0 kworker/3:0-eve [kworker/3:0-events]",
+      "   6680       1   0  19   2  0.0  0.3 wpa_supplicant  /sbin/wpa_supplicant -c /run/netplan/wpa-wlan0.conf -iwlan0 -Dnl80211,wext",
+      "   6683       1   0  19   0  0.0  0.2 rsyslogd        /usr/sbin/rsyslogd -n -iNONE"
+    ],
+    "benchmark_source_revision": "ec20ae3ff3c50c581a892e79a53b0a8c1767b350",
+    "binary_sha256": {
+      "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+      "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+      "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee"
+    },
+    "board_clock_note": "Pi wall clock was reported unsynchronized on 2026-11-10; retain board timestamps as observed. Benchmark elapsed-time measurements use CLOCK_MONOTONIC.",
+    "board_wall_clock_local": "2026-11-10T17:23:58+08:00",
+    "board_wall_clock_utc": "2026-11-10T09:23:58+00:00",
+    "build_type": "Release",
+    "cgroup_cpuset_cpus_effective": "0-3",
+    "client_date": "2026-11-10",
+    "clock_sync": {
+      "chrony_sources": {
+        "argv": [
+          "chronyc",
+          "sources",
+          "-v"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": ".-- Source mode  '^' = server, '=' = peer, '#' = local clock.\n / .- Source state '*' = current best, '+' = combined, '-' = not combined,\n| /             'x' = may be in error, '~' = too variable, '?' = unusable.\n||                                                 .- xxxx [ yyyy ] +/- zzzz\n||      Reachability register (octal) -.           |  xxxx = adjusted offset,\n||      Log2(Polling interval) --.      |          |  yyyy = measured offset,\n||                                \\     |          |  zzzz = estimated error.\n||                                 |    |           \\\nMS Name/IP address         Stratum Poll Reach LastRx Last sample               \n===============================================================================\n^* 198.18.0.49                   2   6   377     8  +1144us[+1309us] +/-  400ms\n^- 198.18.0.29                   2   6   377     8    +12ms[  +12ms] +/-  370ms\n^- 198.18.0.157                  2   6   377     8  -1662us[-1662us] +/-  369ms\n^? 198.18.0.117                  0   6     0     -     +0ns[   +0ns] +/-    0ns\n^- 198.18.0.96                   2   6   362   136  +9926us[+9981us] +/-  367ms"
+      },
+      "chrony_tracking": {
+        "argv": [
+          "chronyc",
+          "tracking"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Reference ID    : C6120031 (198.18.0.49)\nStratum         : 3\nRef time (UTC)  : Tue Nov 10 09:23:50 2026\nSystem time     : 0.000801250 seconds fast of NTP time\nLast offset     : +0.000165296 seconds\nRMS offset      : 0.013589759 seconds\nFrequency       : 9.549 ppm slow\nResidual freq   : +0.171 ppm\nSkew            : 58.246 ppm\nRoot delay      : 0.742415786 seconds\nRoot dispersion : 0.015151584 seconds\nUpdate interval : 65.1 seconds\nLeap status     : Normal"
+      },
+      "timedatectl_ntp_synchronized": {
+        "argv": [
+          "timedatectl",
+          "show",
+          "-p",
+          "NTPSynchronized",
+          "--value"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "yes"
+      }
+    },
+    "controller_test_date": "2026-11-10",
+    "cpu_accounting_ticks_per_second": 100,
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_allowed": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_policies": {
+      "policy0": {
+        "affected_cpus": "0 1 2 3",
+        "available_frequencies_khz": "600000 700000 800000 900000 1000000 1100000 1200000 1300000 1400000 1500000",
+        "available_governors": "conservative ondemand userspace powersave performance schedutil",
+        "current_khz": "1500000",
+        "governor": "ondemand",
+        "hardware_maximum_khz": "1500000",
+        "maximum_khz": "1500000",
+        "minimum_khz": "600000",
+        "related_cpus": "0 1 2 3"
+      }
+    },
+    "cpuinfo": "processor\t: 0\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 1\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 2\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 3\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nRevision\t: c03112\nSerial\t\t: 1000000077e196cf\nModel\t\t: Raspberry Pi 4 Model B Rev 1.2",
+    "device_model": "Raspberry Pi 4 Model B Rev 1.2",
+    "dpkg_ros_fastdds_versions": {
+      "cmake": "4.2.3-2ubuntu2",
+      "g++": "4:15.2.0-5ubuntu1",
+      "python3": "3.14.3-0ubuntu2",
+      "python3-minimal": "3.14.3-0ubuntu2",
+      "ros-lyrical-action-msgs": "2.4.5-1resolute.20260915.031431",
+      "ros-lyrical-ament-cmake": "2.8.8-1resolute.20260728.165552",
+      "ros-lyrical-ament-cmake-core": "2.8.8-1resolute.20260728.162449",
+      "ros-lyrical-ament-cmake-cppcheck": "0.20.6-1resolute.20260728.165801",
+      "ros-lyrical-ament-cmake-cpplint": "0.20.6-1resolute.20260728.165805",
+      "ros-lyrical-ament-cmake-export-definitions": "2.8.8-1resolute.20260728.164809",
+      "ros-lyrical-ament-cmake-export-dependencies": "2.8.8-1resolute.20260728.165205",
+      "ros-lyrical-ament-cmake-export-include-directories": "2.8.8-1resolute.20260728.164838",
+      "ros-lyrical-ament-cmake-export-libraries": "2.8.8-1resolute.20260728.164942",
+      "ros-lyrical-ament-cmake-export-link-flags": "2.8.8-1resolute.20260728.164948",
+      "ros-lyrical-ament-cmake-export-targets": "2.8.8-1resolute.20260728.165143",
+      "ros-lyrical-ament-cmake-flake8": "0.20.6-1resolute.20260728.231608",
+      "ros-lyrical-ament-cmake-gen-version-h": "2.8.8-1resolute.20260728.164948",
+      "ros-lyrical-ament-cmake-include-directories": "2.8.8-1resolute.20260728.164950",
+      "ros-lyrical-ament-cmake-libraries": "2.8.8-1resolute.20260728.164956",
+      "ros-lyrical-ament-cmake-mypy": "0.20.6-1resolute.20260729.000143",
+      "ros-lyrical-ament-cmake-pep257": "0.20.6-1resolute.20260728.231802",
+      "ros-lyrical-ament-cmake-python": "2.8.8-1resolute.20260728.165001",
+      "ros-lyrical-ament-cmake-ros-core": "0.15.8-1resolute.20260728.165316",
+      "ros-lyrical-ament-cmake-target-dependencies": "2.8.8-1resolute.20260728.165203",
+      "ros-lyrical-ament-cmake-test": "2.8.8-1resolute.20260728.165227",
+      "ros-lyrical-ament-cmake-uncrustify": "0.20.6-1resolute.20260728.231204",
+      "ros-lyrical-ament-cmake-version": "2.8.8-1resolute.20260728.165000",
+      "ros-lyrical-ament-cppcheck": "0.20.6-1resolute.20260728.165013",
+      "ros-lyrical-ament-cpplint": "0.20.6-1resolute.20260728.165146",
+      "ros-lyrical-ament-flake8": "0.20.6-1resolute.20260728.231511",
+      "ros-lyrical-ament-index-cpp": "1.13.3-3resolute.20260728.165813",
+      "ros-lyrical-ament-index-python": "1.13.3-3resolute.20260728.165228",
+      "ros-lyrical-ament-lint": "0.20.6-1resolute.20260728.165230",
+      "ros-lyrical-ament-mypy": "0.20.6-1resolute.20260728.165241",
+      "ros-lyrical-ament-package": "0.18.3-3resolute.20260429.232447",
+      "ros-lyrical-ament-pep257": "0.20.6-1resolute.20260728.231607",
+      "ros-lyrical-ament-uncrustify": "0.20.6-1resolute.20260728.231103",
+      "ros-lyrical-builtin-interfaces": "2.4.5-1resolute.20260915.030751",
+      "ros-lyrical-class-loader": "2.9.4-3resolute.20260831.170855",
+      "ros-lyrical-console-bridge-vendor": "1.9.1-3resolute.20260728.170449",
+      "ros-lyrical-fastcdr": "2.3.6-1resolute.20260728.232144",
+      "ros-lyrical-fastdds": "3.6.2-1resolute.20260729.000645",
+      "ros-lyrical-foonathan-memory-vendor": "1.4.1-1resolute.20260728.232240",
+      "ros-lyrical-geometry-msgs": "5.9.3-1resolute.20260915.040510",
+      "ros-lyrical-libstatistics-collector": "2.1.2-1resolute.20260915.061321",
+      "ros-lyrical-libyaml-vendor": "1.8.1-3resolute.20260728.174725",
+      "ros-lyrical-pluginlib": "5.8.5-1resolute.20260831.172019",
+      "ros-lyrical-rcl": "10.4.5-1resolute.20260915.060950",
+      "ros-lyrical-rcl-interfaces": "2.4.5-1resolute.20260915.033112",
+      "ros-lyrical-rcl-logging-implementation": "3.4.1-3resolute.20260915.060721",
+      "ros-lyrical-rcl-logging-interface": "3.4.1-3resolute.20260915.060043",
+      "ros-lyrical-rcl-logging-spdlog": "3.4.1-3resolute.20260915.060314",
+      "ros-lyrical-rcl-yaml-param-parser": "10.4.5-1resolute.20260915.060101",
+      "ros-lyrical-rclcpp": "32.0.3-1resolute.20260915.071541",
+      "ros-lyrical-rcpputils": "2.14.5-1resolute.20260831.165800",
+      "ros-lyrical-rcutils": "7.1.3-1resolute.20260831.165252",
+      "ros-lyrical-rmw": "7.10.2-3resolute.20260901.091057",
+      "ros-lyrical-rmw-dds-common": "6.0.0-3resolute.20260915.044942",
+      "ros-lyrical-rmw-fastrtps-cpp": "9.4.10-1resolute.20260915.052709",
+      "ros-lyrical-rmw-fastrtps-shared-cpp": "9.4.10-1resolute.20260915.052019",
+      "ros-lyrical-rmw-implementation": "3.1.6-1resolute.20260915.053617",
+      "ros-lyrical-rmw-implementation-cmake": "7.10.2-3resolute.20260901.091114",
+      "ros-lyrical-rmw-security-common": "7.10.2-3resolute.20260901.091618",
+      "ros-lyrical-ros-environment": "4.5.1-1resolute.20260728.165005",
+      "ros-lyrical-ros-workspace": "1.0.3-9resolute.20260728.162938",
+      "ros-lyrical-rosgraph-msgs": "2.4.5-1resolute.20260915.033901",
+      "ros-lyrical-rosidl-adapter": "5.2.1-1resolute.20260729.000945",
+      "ros-lyrical-rosidl-buffer": "5.2.1-1resolute.20260728.175701",
+      "ros-lyrical-rosidl-buffer-backend": "5.2.1-1resolute.20260901.092045",
+      "ros-lyrical-rosidl-buffer-backend-registry": "5.2.1-1resolute.20260901.092640",
+      "ros-lyrical-rosidl-buffer-py": "5.2.1-1resolute.20260728.230323",
+      "ros-lyrical-rosidl-cli": "5.2.1-1resolute.20260728.235551",
+      "ros-lyrical-rosidl-cmake": "5.2.1-1resolute.20260729.001530",
+      "ros-lyrical-rosidl-core-generators": "0.4.3-3resolute.20260915.025936",
+      "ros-lyrical-rosidl-core-runtime": "0.4.3-3resolute.20260915.025950",
+      "ros-lyrical-rosidl-default-generators": "1.8.1-3resolute.20260915.032451",
+      "ros-lyrical-rosidl-default-runtime": "1.8.1-3resolute.20260915.032510",
+      "ros-lyrical-rosidl-dynamic-typesupport": "0.4.1-3resolute.20260831.170855",
+      "ros-lyrical-rosidl-dynamic-typesupport-fastrtps": "0.5.1-3resolute.20260831.171502",
+      "ros-lyrical-rosidl-generator-c": "5.2.1-1resolute.20260831.165802",
+      "ros-lyrical-rosidl-generator-cpp": "5.2.1-1resolute.20260831.172019",
+      "ros-lyrical-rosidl-generator-py": "0.27.2-3resolute.20260901.091841",
+      "ros-lyrical-rosidl-generator-rs": "0.5.0-2resolute.20260831.170937",
+      "ros-lyrical-rosidl-generator-type-description": "5.2.1-1resolute.20260729.001225",
+      "ros-lyrical-rosidl-parser": "5.2.1-1resolute.20260729.001044",
+      "ros-lyrical-rosidl-pycommon": "5.2.1-1resolute.20260729.001346",
+      "ros-lyrical-rosidl-runtime-c": "5.2.1-1resolute.20260831.165811",
+      "ros-lyrical-rosidl-runtime-cpp": "5.2.1-1resolute.20260831.170855",
+      "ros-lyrical-rosidl-typesupport-c": "3.4.2-3resolute.20260831.170637",
+      "ros-lyrical-rosidl-typesupport-cpp": "3.4.2-3resolute.20260831.172936",
+      "ros-lyrical-rosidl-typesupport-fastrtps-c": "3.9.7-1resolute.20260915.025643",
+      "ros-lyrical-rosidl-typesupport-fastrtps-cpp": "3.9.7-1resolute.20260915.025417",
+      "ros-lyrical-rosidl-typesupport-interface": "5.2.1-1resolute.20260728.175703",
+      "ros-lyrical-rosidl-typesupport-introspection-c": "5.2.1-1resolute.20260831.170356",
+      "ros-lyrical-rosidl-typesupport-introspection-cpp": "5.2.1-1resolute.20260831.172326",
+      "ros-lyrical-rpyutils": "0.7.2-3resolute.20260728.235551",
+      "ros-lyrical-sensor-msgs": "5.9.3-1resolute.20260915.042131",
+      "ros-lyrical-service-msgs": "2.4.5-1resolute.20260915.031315",
+      "ros-lyrical-spdlog-vendor": "1.8.0-3resolute.20260728.171059",
+      "ros-lyrical-statistics-msgs": "2.4.5-1resolute.20260915.033750",
+      "ros-lyrical-std-msgs": "5.9.3-1resolute.20260915.033923",
+      "ros-lyrical-tracetools": "8.10.2-1resolute.20260728.165820",
+      "ros-lyrical-type-description-interfaces": "2.4.5-1resolute.20260915.031448",
+      "ros-lyrical-uncrustify-vendor": "3.2.0-3resolute.20260728.171306",
+      "ros-lyrical-unique-identifier-msgs": "2.8.1-3resolute.20260915.030214"
+    },
+    "firmware_sensor_reads": {
+      "vcgencmd_measure_clock_arm": {
+        "argv": [
+          "vcgencmd",
+          "measure_clock",
+          "arm"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      },
+      "vcgencmd_measure_temp": {
+        "argv": [
+          "vcgencmd",
+          "measure_temp"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      }
+    },
+    "host_date_utc": "2026-11-10T09:23:58+00:00",
+    "loadavg": "0.38 1.17 1.34 1/214 7861",
+    "measured_source_revision": "ec20ae3ff3c50c581a892e79a53b0a8c1767b350",
+    "meminfo": "MemTotal:        3869652 kB\nMemFree:         1553476 kB\nMemAvailable:    3280532 kB\nBuffers:           74920 kB\nCached:          1695672 kB\nSwapCached:            0 kB\nActive:           292108 kB\nInactive:        1720464 kB\nActive(anon):     215240 kB\nInactive(anon):    27912 kB\nActive(file):      76868 kB\nInactive(file):  1692552 kB\nUnevictable:           0 kB\nMlocked:               0 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               404 kB\nWriteback:             0 kB\nAnonPages:        241484 kB\nMapped:           136508 kB\nShmem:              1272 kB\nKReclaimable:     149800 kB\nSlab:             224692 kB\nSReclaimable:     149800 kB\nSUnreclaim:        74892 kB\nKernelStack:        3472 kB\nPageTables:         4152 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     1934824 kB\nCommitted_AS:     891564 kB\nVmallocTotal:   135288315904 kB\nVmallocUsed:       15268 kB\nVmallocChunk:          0 kB\nPercpu:             1856 kB\nAnonHugePages:    147456 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:     57344 kB\nFilePmdMapped:         0 kB\nCmaTotal:         524288 kB\nCmaFree:          510284 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB",
+    "native_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "notes": [
+      "The Pi wall clock was reported unsynchronized on 2026-11-10; board timestamps are preserved as observed.",
+      "Benchmark elapsed-time measurements use CLOCK_MONOTONIC.",
+      "Build capture does not change services, CPU governors, board time, or CPU isolation.",
+      "vcgencmd throttling is attempted with a 3-second timeout; sysfs thermal and frequency data are captured separately."
+    ],
+    "optimization": "-O3 -DNDEBUG",
+    "os_release": {
+      "BUG_REPORT_URL": "https://bugs.launchpad.net/ubuntu/",
+      "HOME_URL": "https://www.ubuntu.com/",
+      "ID": "ubuntu",
+      "ID_LIKE": "debian",
+      "LOGO": "ubuntu-logo",
+      "NAME": "Ubuntu",
+      "PRETTY_NAME": "Ubuntu 26.04 LTS",
+      "PRIVACY_POLICY_URL": "https://www.ubuntu.com/legal/terms-and-policies/privacy-policy",
+      "SUPPORT_URL": "https://help.ubuntu.com/",
+      "UBUNTU_CODENAME": "resolute",
+      "VERSION": "26.04 (Resolute Raccoon)",
+      "VERSION_CODENAME": "resolute",
+      "VERSION_ID": "26.04"
+    },
+    "os_release_raw": "PRETTY_NAME=\"Ubuntu 26.04 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04 (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=resolute\nLOGO=ubuntu-logo",
+    "phase": "before-formal",
+    "planned_benchmark_cpu_affinity": [
+      2,
+      3
+    ],
+    "planned_benchmark_cpu_affinity_note": "Parent-run harness is planned with --cpus 2,3; runner metadata should retain actual endpoint affinity.",
+    "platform": "Linux-7.0.0-1009-raspi-aarch64-with-glibc2.43",
+    "process_cpu_affinity_at_capture": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "process_cpus_allowed_list_at_capture": "0-3",
+    "running_services": {
+      "argv": [
+        "systemctl",
+        "list-units",
+        "--type=service",
+        "--state=running",
+        "--no-legend",
+        "--no-pager"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "chrony.service              loaded active running chrony, an NTP client/server\n  cron.service                loaded active running Regular background program processing daemon\n  dbus.service                loaded active running D-Bus System Message Bus\n  fwupd.service               loaded active running Firmware update daemon\n  getty@tty1.service          loaded active running Getty on tty1\n  lttng-sessiond.service      loaded active running LTTng session daemon\n  ModemManager.service        loaded active running Modem Manager\n  netplan-wpa-wlan0.service   loaded active running WPA supplicant for netplan wlan0\n  networkd-dispatcher.service loaded active running Dispatcher daemon for systemd-networkd\n  NetworkManager.service      loaded active running Network Manager\n  polkit.service              loaded active running Authorization Manager\n  rsyslog.service             loaded active running System Logging Service\n  serial-getty@ttyS0.service  loaded active running Serial Getty on ttyS0\n  snapd.service               loaded active running Snap Daemon\n  ssh.service                 loaded active running OpenBSD Secure Shell server\n  systemd-journald.service    loaded active running Journal Service\n  systemd-logind.service      loaded active running User Login Management\n  systemd-networkd.service    loaded active running Network Management\n  systemd-resolved.service    loaded active running Network Name Resolution\n  systemd-timedated.service   loaded active running Time & Date Service\n  systemd-udevd.service       loaded active running Rule-based Manager for Device Events and Files\n  udisks2.service             loaded active running Disk Manager\n  unattended-upgrades.service loaded active running Unattended Upgrades Shutdown\n  user@1000.service           loaded active running User Manager for UID 1000\n  wpa_supplicant.service      loaded active running WPA supplicant"
+    },
+    "sdk": {
+      "architecture": "aarch64",
+      "binary_sha256": {
+        "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+        "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+        "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee"
+      },
+      "copied_from": "aidlux@192.168.1.232:/home/aidlux/.local/opt/rbt-sdk-0.8.0-linux-aarch64",
+      "framework_header_comparison": {
+        "all_match": true,
+        "headers": [
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/runtime.hpp",
+            "framework_sha256": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c",
+            "header": "runtime.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/runtime.hpp",
+            "sdk_sha256": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/stream.hpp",
+            "framework_sha256": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091",
+            "header": "stream.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/stream.hpp",
+            "sdk_sha256": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/wait.hpp",
+            "framework_sha256": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11",
+            "header": "wait.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/wait.hpp",
+            "sdk_sha256": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/types.hpp",
+            "framework_sha256": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f",
+            "header": "types.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/types.hpp",
+            "sdk_sha256": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f"
+          }
+        ]
+      },
+      "iceoryx2_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+      "relocation": {
+        "reason": "RBT CMake package and imported library paths are prefix-relative.",
+        "required": false,
+        "sdk_modified_after_copy": false
+      },
+      "sdk_path": "/home/pi/rbt-transport-bench-20261110/sdk/rbt-sdk-0.8.0-linux-aarch64",
+      "source_tree_manifest_matches_copy": true,
+      "source_tree_manifest_sha256": "eeb4e63e03e2f9ba30a832f26683d1b41d7a685625122f0280bd781357f96004",
+      "tree_file_count": 3288,
+      "tree_manifest_sha256": "eeb4e63e03e2f9ba30a832f26683d1b41d7a685625122f0280bd781357f96004",
+      "version": "0.8.0"
+    },
+    "sdk_build_stamp": "2026-10-22T04:09:10+08:00\nLinux kalama 5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty #1 SMP PREEMPT Thu Mar 26 13:55:25 CST 2026 aarch64 aarch64 aarch64 GNU/Linux\nglibc 2.35\nc++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nrustc 1.98.1 (48a229cea 2026-09-01)\nrbt 0.8.0\nSDK 0.8.0\ncomposer 0.8.0\nfork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "sdk_source_commit": null,
+    "source_sha256": {
+      "harness/CMakeLists.txt": "c6cfeedcf57702ab114413180e69c9c7cf4d511bea01d58158b7382b1b7192de",
+      "harness/README.md": "50f0c33811bfc5b54e4c73bbd8be209960a2e4d8029ca725250a83b22daf258c",
+      "harness/common.hpp": "dcfd7898f143b8158c7a310fbf3f5e487aaa10982cad842bd69955cbfabc099e",
+      "harness/config/loan.xml": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f",
+      "harness/config/shm.xml": "b513bbcc1c63ceea3b1d75e31151745cd9a6bcfdfae71e70787ab41f9d6001a6",
+      "harness/generated/cpp/rbt/transport_bench.hpp": "c43b8793bccf92c983e80dd7e129d52cd4a75ce2000a971acbee5cf86a894979",
+      "harness/generated/descriptors/transport_bench.json": "dfa85cec01b4b9fbc068bcfcb5b5097ad14c432819c90267f06007979328c951",
+      "harness/generated/rust/transport_bench.rs": "e8b54a0b9ab42dc44e7c7cedfd71238c4bd6b1280d3ffb030d48308c6a0aff97",
+      "harness/msg/CloudFrame.msg": "c26dba7452e1a19fc2509f1d690290b80f27b629ffedb936e2078d0a02c4d1c9",
+      "harness/msg/ImuFrame.msg": "07f61cb689af826356f6035ef0e375fec88c9a053ca5e006080f4895060dfdb6",
+      "harness/msg/VideoFrame.msg": "74d42d06459ac4c0c9dd050d4909a04f90762643af95d31045a29d8403a1dc3f",
+      "harness/package.xml": "3e38172a0ebac27c4314553d7426d3e920a78bc7fa9ef4e6949265d424a4087a",
+      "harness/plot.py": "6b3978499567cab790a430548c6d6506f2e9948029e14309204b138db433556c",
+      "harness/rbt_endpoint.cpp": "9e6b8cb4bd128c5531ba8205d66d7b9de01ae68dc281c582cc8bb82d89fdc04f",
+      "harness/ros2_endpoint.cpp": "808c0d5b2d68a25f0fcee77fcbc522c8b43fd5c279d9690f4fa70ec0b2a8b3eb",
+      "harness/run.py": "7cea759560bba361eb6a3ed28b4115c5f87da195c1a862220fe3cefe920c8d5d",
+      "harness/standard_loan_probe.cpp": "7f633a6d079528195154086c1e22a2b588af429a1e97396a25b1806498386ecd",
+      "harness/summarize.py": "045fd61d8131b975874ec6416e5cbd2c65a77f3470c169d6e838fc77859e46a8",
+      "harness/test_runner.py": "1a8a19f31374a7074f947c52637dcdbc1aa4c87c444f12882324f6ced0c73980",
+      "harness/test_summarize.py": "ba290efafdd20b12908ba3e5a558c8b76db8915281a2e8dcc95451cd2b35b908",
+      "harness/types/transport_bench.rbt": "076ebb215aef1d045cb30e3d0cfc6a4d75e2303d33f407f67ee06887159e9cd8"
+    },
+    "thermal": {
+      "thermal_zone0": {
+        "celsius": 43.329,
+        "raw_temp": "43329",
+        "type": "cpu-thermal"
+      }
+    },
+    "throttling": {
+      "sysfs_candidates": {},
+      "vcgencmd_get_throttled": {
+        "argv": [
+          "vcgencmd",
+          "get_throttled"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      }
+    },
+    "tool_versions": {
+      "cmake": {
+        "argv": [
+          "cmake",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+      },
+      "g++": {
+        "argv": [
+          "g++",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      "glibc": {
+        "argv": [
+          "ldd",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "ldd (Ubuntu GLIBC 2.43-2ubuntu2.4) 2.43\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper."
+      },
+      "python3": {
+        "argv": [
+          "python3",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Python 3.14.4"
+      },
+      "ros2_cli": {
+        "argv": [
+          "ros2",
+          "--help"
+        ],
+        "available": false,
+        "reason": "command not found"
+      }
+    },
+    "uname": {
+      "machine": "aarch64",
+      "node": "raspberrypi",
+      "processor": "",
+      "release": "7.0.0-1009-raspi",
+      "system": "Linux",
+      "version": "#9-Ubuntu SMP PREEMPT_DYNAMIC Mon Apr 13 16:37:04 UTC 2026"
+    },
+    "versions": {
+      "cmake": "4.2.3-2ubuntu2",
+      "fastcdr": "2.3.6-1resolute.20260728.232144",
+      "fastdds": "3.6.2-1resolute.20260729.000645",
+      "glibc": "2.43",
+      "gxx": "4:15.2.0-5ubuntu1",
+      "native": "0.10.0-rbt.2",
+      "python": "3.14.4",
+      "rbt_sdk": "0.8.0",
+      "rclcpp": "32.0.3-1resolute.20260915.071541",
+      "rmw_fastrtps_cpp": "9.4.10-1resolute.20260915.052709",
+      "rmw_fastrtps_shared_cpp": "9.4.10-1resolute.20260915.052019",
+      "rosidl_generator_cpp": "5.2.1-1resolute.20260831.172019",
+      "sensor_msgs": "5.9.3-1resolute.20260915.042131"
+    }
+  },
+  "after": {
+    "architecture": "aarch64",
+    "background_process_snapshot_top_40": [
+      "PID    PPID  NI PRI PSR %CPU %MEM COMMAND         COMMAND",
+      "   8532    8517   0  19   0  100  0.0 ps              ps -eo pid,ppid,ni,pri,psr,pcpu,pmem,comm,args --sort=-pcpu",
+      "   8517    7837   0  19   2 42.5  0.6 python3         python3 /home/pi/rbt-transport-bench-20261110/capture_environment.py --phase after-formal --output /home/pi/rbt-transport-bench-20261110/formal-environment-after.json",
+      "   8522       1   0  19   3 38.7  0.1 systemd-timedat /usr/lib/systemd/systemd-timedated",
+      "      1       0   0  19   2  0.5  0.4 systemd         /usr/lib/systemd/systemd --system --deserialize=8 fixrtc",
+      "   1998    1934   0  19   2  0.3  0.2 sshd-session    sshd-session: pi@notty",
+      "   5083       1   0  19   2  0.3  2.0 fwupd           /usr/libexec/fwupd/fwupd",
+      "     59       2 -20  39   0  0.2  0.0 kworker/u17:0-b [kworker/u17:0-brcmf_wq/mmc1:0001:1]",
+      "   8335       2   0  19   2  0.1  0.0 kworker/2:2-eve [kworker/2:2-events]",
+      "   1405       1   0  19   0  0.1  0.9 snapd           /snap/snapd/current/usr/lib/snapd/snapd",
+      "   2296       2   0  19   3  0.1  0.0 kworker/3:3-eve [kworker/3:3-events]",
+      "      9       2   0  19   0  0.0  0.0 kworker/0:0-rcu [kworker/0:0-rcu_gp]",
+      "    415       2   0  19   3  0.0  0.0 jbd2/mmcblk0p2- [jbd2/mmcblk0p2-8]",
+      "   8044       2   0  19   3  0.0  0.0 kworker/3:1-eve [kworker/3:1-events]",
+      "   1922       2   0  19   2  0.0  0.0 kworker/2:0-eve [kworker/2:0-events]",
+      "   1395       1   0  19   1  0.0  0.1 dbus-daemon     @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only",
+      "     15       2   0  19   3  0.0  0.0 rcu_preempt     [rcu_preempt]",
+      "   2092       2   0  19   1  0.0  0.0 kworker/1:3-eve [kworker/1:3-events]",
+      "   6641    6610   0  19   2  0.0  0.3 chronyd         /usr/sbin/chronyd -n -F 1",
+      "   2297       2 -20  39   0  0.0  0.0 kworker/0:2H-mm [kworker/0:2H-mmc_complete]",
+      "     83       2   0  19   1  0.0  0.0 kworker/1:2-eve [kworker/1:2-events]",
+      "   5270       2   0  19   1  0.0  0.0 kworker/1:1-mm_ [kworker/1:1-mm_percpu_wq]",
+      "   1591       1   0  19   2  0.0  0.9 unattended-upgr /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal",
+      "   1399       1   0  19   0  0.0  0.7 networkd-dispat /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers",
+      "     24       2 -20  39   1  0.0  0.0 kworker/1:0H-kb [kworker/1:0H-kblockd]",
+      "   6487       2   0  19   0  0.0  0.0 kworker/0:1-eve [kworker/0:1-events]",
+      "   7646       2   0  19   2  0.0  0.0 kworker/2:3-eve [kworker/2:3-events]",
+      "   6639       1   0  19   2  0.0  0.3 systemd-resolve /usr/lib/systemd/systemd-resolved",
+      "   6631       1   0  19   2  0.0  0.5 polkitd         /usr/lib/polkit-1/polkitd --no-debug --log-level=notice",
+      "   1409       1   0  19   3  0.0  0.2 systemd-logind  /usr/lib/systemd/systemd-logind",
+      "   1811       1   0  19   1  0.0  0.3 systemd         /usr/lib/systemd/systemd --user --deserialize=8",
+      "   7536       2   0  19   3  0.0  0.0 kworker/3:0-eve [kworker/3:0-events]",
+      "   7509       2   0  19   0  0.0  0.0 kworker/0:2-eve [kworker/0:2-events]",
+      "   6677       1   0  19   3  0.0  0.5 ModemManager    /usr/sbin/ModemManager",
+      "   6663       1   0  19   1  0.0  0.2 systemd-udevd   /usr/lib/systemd/systemd-udevd",
+      "   6715       1  -1  20   0  0.0  0.3 systemd-journal /usr/lib/systemd/systemd-journald",
+      "     42       2   0  19   1  0.0  0.0 kworker/u16:1-f [kworker/u16:1-flush-179:0]",
+      "    409       2 -20  39   2  0.0  0.0 kworker/2:1H-kb [kworker/2:1H-kblockd]",
+      "   6695       1   0  19   2  0.0  0.3 systemd-network /usr/lib/systemd/systemd-networkd",
+      "     89       2   0  19   2  0.0  0.0 kworker/u16:4-e [kworker/u16:4-events_power_efficient]",
+      "   8116       2   0  19   1  0.0  0.0 kworker/1:0-mm_ [kworker/1:0-mm_percpu_wq]"
+    ],
+    "benchmark_source_revision": "ec20ae3ff3c50c581a892e79a53b0a8c1767b350",
+    "binary_sha256": {
+      "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+      "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+      "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee"
+    },
+    "board_clock_note": "Pi wall clock was reported unsynchronized on 2026-11-10; retain board timestamps as observed. Benchmark elapsed-time measurements use CLOCK_MONOTONIC.",
+    "board_wall_clock_local": "2026-11-10T17:32:21+08:00",
+    "board_wall_clock_utc": "2026-11-10T09:32:21+00:00",
+    "build_type": "Release",
+    "cgroup_cpuset_cpus_effective": "0-3",
+    "client_date": "2026-11-10",
+    "clock_sync": {
+      "chrony_sources": {
+        "argv": [
+          "chronyc",
+          "sources",
+          "-v"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": ".-- Source mode  '^' = server, '=' = peer, '#' = local clock.\n / .- Source state '*' = current best, '+' = combined, '-' = not combined,\n| /             'x' = may be in error, '~' = too variable, '?' = unusable.\n||                                                 .- xxxx [ yyyy ] +/- zzzz\n||      Reachability register (octal) -.           |  xxxx = adjusted offset,\n||      Log2(Polling interval) --.      |          |  yyyy = measured offset,\n||                                \\     |          |  zzzz = estimated error.\n||                                 |    |           \\\nMS Name/IP address         Stratum Poll Reach LastRx Last sample               \n===============================================================================\n^* 198.18.0.49                   2   6   377    56    -18ms[  -19ms] +/-  419ms\n^- 198.18.0.29                   2   6   377   186  -2675us[-3088us] +/-  378ms\n^- 198.18.0.157                  2   6   377   122    -11ms[  -12ms] +/-  366ms\n^? 198.18.0.117                  0   6     0     -     +0ns[   +0ns] +/-    0ns\n^- 198.18.0.96                   2   6    40   443  -9340us[-6425us] +/-  381ms"
+      },
+      "chrony_tracking": {
+        "argv": [
+          "chronyc",
+          "tracking"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Reference ID    : C6120031 (198.18.0.49)\nStratum         : 3\nRef time (UTC)  : Tue Nov 10 09:31:24 2026\nSystem time     : 0.000210138 seconds slow of NTP time\nLast offset     : -0.000214599 seconds\nRMS offset      : 0.010162608 seconds\nFrequency       : 15.729 ppm fast\nResidual freq   : +0.310 ppm\nSkew            : 21.118 ppm\nRoot delay      : 0.735480666 seconds\nRoot dispersion : 0.006937858 seconds\nUpdate interval : 130.2 seconds\nLeap status     : Normal"
+      },
+      "timedatectl_ntp_synchronized": {
+        "argv": [
+          "timedatectl",
+          "show",
+          "-p",
+          "NTPSynchronized",
+          "--value"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "yes"
+      }
+    },
+    "controller_test_date": "2026-11-10",
+    "cpu_accounting_ticks_per_second": 100,
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_allowed": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpu_policies": {
+      "policy0": {
+        "affected_cpus": "0 1 2 3",
+        "available_frequencies_khz": "600000 700000 800000 900000 1000000 1100000 1200000 1300000 1400000 1500000",
+        "available_governors": "conservative ondemand userspace powersave performance schedutil",
+        "current_khz": "1500000",
+        "governor": "ondemand",
+        "hardware_maximum_khz": "1500000",
+        "maximum_khz": "1500000",
+        "minimum_khz": "600000",
+        "related_cpus": "0 1 2 3"
+      }
+    },
+    "cpuinfo": "processor\t: 0\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 1\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 2\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nprocessor\t: 3\nBogoMIPS\t: 108.00\nFeatures\t: fp asimd evtstrm crc32 cpuid\nCPU implementer\t: 0x41\nCPU architecture: 8\nCPU variant\t: 0x0\nCPU part\t: 0xd08\nCPU revision\t: 3\n\nRevision\t: c03112\nSerial\t\t: 1000000077e196cf\nModel\t\t: Raspberry Pi 4 Model B Rev 1.2",
+    "device_model": "Raspberry Pi 4 Model B Rev 1.2",
+    "dpkg_ros_fastdds_versions": {
+      "cmake": "4.2.3-2ubuntu2",
+      "g++": "4:15.2.0-5ubuntu1",
+      "python3": "3.14.3-0ubuntu2",
+      "python3-minimal": "3.14.3-0ubuntu2",
+      "ros-lyrical-action-msgs": "2.4.5-1resolute.20260915.031431",
+      "ros-lyrical-ament-cmake": "2.8.8-1resolute.20260728.165552",
+      "ros-lyrical-ament-cmake-core": "2.8.8-1resolute.20260728.162449",
+      "ros-lyrical-ament-cmake-cppcheck": "0.20.6-1resolute.20260728.165801",
+      "ros-lyrical-ament-cmake-cpplint": "0.20.6-1resolute.20260728.165805",
+      "ros-lyrical-ament-cmake-export-definitions": "2.8.8-1resolute.20260728.164809",
+      "ros-lyrical-ament-cmake-export-dependencies": "2.8.8-1resolute.20260728.165205",
+      "ros-lyrical-ament-cmake-export-include-directories": "2.8.8-1resolute.20260728.164838",
+      "ros-lyrical-ament-cmake-export-libraries": "2.8.8-1resolute.20260728.164942",
+      "ros-lyrical-ament-cmake-export-link-flags": "2.8.8-1resolute.20260728.164948",
+      "ros-lyrical-ament-cmake-export-targets": "2.8.8-1resolute.20260728.165143",
+      "ros-lyrical-ament-cmake-flake8": "0.20.6-1resolute.20260728.231608",
+      "ros-lyrical-ament-cmake-gen-version-h": "2.8.8-1resolute.20260728.164948",
+      "ros-lyrical-ament-cmake-include-directories": "2.8.8-1resolute.20260728.164950",
+      "ros-lyrical-ament-cmake-libraries": "2.8.8-1resolute.20260728.164956",
+      "ros-lyrical-ament-cmake-mypy": "0.20.6-1resolute.20260729.000143",
+      "ros-lyrical-ament-cmake-pep257": "0.20.6-1resolute.20260728.231802",
+      "ros-lyrical-ament-cmake-python": "2.8.8-1resolute.20260728.165001",
+      "ros-lyrical-ament-cmake-ros-core": "0.15.8-1resolute.20260728.165316",
+      "ros-lyrical-ament-cmake-target-dependencies": "2.8.8-1resolute.20260728.165203",
+      "ros-lyrical-ament-cmake-test": "2.8.8-1resolute.20260728.165227",
+      "ros-lyrical-ament-cmake-uncrustify": "0.20.6-1resolute.20260728.231204",
+      "ros-lyrical-ament-cmake-version": "2.8.8-1resolute.20260728.165000",
+      "ros-lyrical-ament-cppcheck": "0.20.6-1resolute.20260728.165013",
+      "ros-lyrical-ament-cpplint": "0.20.6-1resolute.20260728.165146",
+      "ros-lyrical-ament-flake8": "0.20.6-1resolute.20260728.231511",
+      "ros-lyrical-ament-index-cpp": "1.13.3-3resolute.20260728.165813",
+      "ros-lyrical-ament-index-python": "1.13.3-3resolute.20260728.165228",
+      "ros-lyrical-ament-lint": "0.20.6-1resolute.20260728.165230",
+      "ros-lyrical-ament-mypy": "0.20.6-1resolute.20260728.165241",
+      "ros-lyrical-ament-package": "0.18.3-3resolute.20260429.232447",
+      "ros-lyrical-ament-pep257": "0.20.6-1resolute.20260728.231607",
+      "ros-lyrical-ament-uncrustify": "0.20.6-1resolute.20260728.231103",
+      "ros-lyrical-builtin-interfaces": "2.4.5-1resolute.20260915.030751",
+      "ros-lyrical-class-loader": "2.9.4-3resolute.20260831.170855",
+      "ros-lyrical-console-bridge-vendor": "1.9.1-3resolute.20260728.170449",
+      "ros-lyrical-fastcdr": "2.3.6-1resolute.20260728.232144",
+      "ros-lyrical-fastdds": "3.6.2-1resolute.20260729.000645",
+      "ros-lyrical-foonathan-memory-vendor": "1.4.1-1resolute.20260728.232240",
+      "ros-lyrical-geometry-msgs": "5.9.3-1resolute.20260915.040510",
+      "ros-lyrical-libstatistics-collector": "2.1.2-1resolute.20260915.061321",
+      "ros-lyrical-libyaml-vendor": "1.8.1-3resolute.20260728.174725",
+      "ros-lyrical-pluginlib": "5.8.5-1resolute.20260831.172019",
+      "ros-lyrical-rcl": "10.4.5-1resolute.20260915.060950",
+      "ros-lyrical-rcl-interfaces": "2.4.5-1resolute.20260915.033112",
+      "ros-lyrical-rcl-logging-implementation": "3.4.1-3resolute.20260915.060721",
+      "ros-lyrical-rcl-logging-interface": "3.4.1-3resolute.20260915.060043",
+      "ros-lyrical-rcl-logging-spdlog": "3.4.1-3resolute.20260915.060314",
+      "ros-lyrical-rcl-yaml-param-parser": "10.4.5-1resolute.20260915.060101",
+      "ros-lyrical-rclcpp": "32.0.3-1resolute.20260915.071541",
+      "ros-lyrical-rcpputils": "2.14.5-1resolute.20260831.165800",
+      "ros-lyrical-rcutils": "7.1.3-1resolute.20260831.165252",
+      "ros-lyrical-rmw": "7.10.2-3resolute.20260901.091057",
+      "ros-lyrical-rmw-dds-common": "6.0.0-3resolute.20260915.044942",
+      "ros-lyrical-rmw-fastrtps-cpp": "9.4.10-1resolute.20260915.052709",
+      "ros-lyrical-rmw-fastrtps-shared-cpp": "9.4.10-1resolute.20260915.052019",
+      "ros-lyrical-rmw-implementation": "3.1.6-1resolute.20260915.053617",
+      "ros-lyrical-rmw-implementation-cmake": "7.10.2-3resolute.20260901.091114",
+      "ros-lyrical-rmw-security-common": "7.10.2-3resolute.20260901.091618",
+      "ros-lyrical-ros-environment": "4.5.1-1resolute.20260728.165005",
+      "ros-lyrical-ros-workspace": "1.0.3-9resolute.20260728.162938",
+      "ros-lyrical-rosgraph-msgs": "2.4.5-1resolute.20260915.033901",
+      "ros-lyrical-rosidl-adapter": "5.2.1-1resolute.20260729.000945",
+      "ros-lyrical-rosidl-buffer": "5.2.1-1resolute.20260728.175701",
+      "ros-lyrical-rosidl-buffer-backend": "5.2.1-1resolute.20260901.092045",
+      "ros-lyrical-rosidl-buffer-backend-registry": "5.2.1-1resolute.20260901.092640",
+      "ros-lyrical-rosidl-buffer-py": "5.2.1-1resolute.20260728.230323",
+      "ros-lyrical-rosidl-cli": "5.2.1-1resolute.20260728.235551",
+      "ros-lyrical-rosidl-cmake": "5.2.1-1resolute.20260729.001530",
+      "ros-lyrical-rosidl-core-generators": "0.4.3-3resolute.20260915.025936",
+      "ros-lyrical-rosidl-core-runtime": "0.4.3-3resolute.20260915.025950",
+      "ros-lyrical-rosidl-default-generators": "1.8.1-3resolute.20260915.032451",
+      "ros-lyrical-rosidl-default-runtime": "1.8.1-3resolute.20260915.032510",
+      "ros-lyrical-rosidl-dynamic-typesupport": "0.4.1-3resolute.20260831.170855",
+      "ros-lyrical-rosidl-dynamic-typesupport-fastrtps": "0.5.1-3resolute.20260831.171502",
+      "ros-lyrical-rosidl-generator-c": "5.2.1-1resolute.20260831.165802",
+      "ros-lyrical-rosidl-generator-cpp": "5.2.1-1resolute.20260831.172019",
+      "ros-lyrical-rosidl-generator-py": "0.27.2-3resolute.20260901.091841",
+      "ros-lyrical-rosidl-generator-rs": "0.5.0-2resolute.20260831.170937",
+      "ros-lyrical-rosidl-generator-type-description": "5.2.1-1resolute.20260729.001225",
+      "ros-lyrical-rosidl-parser": "5.2.1-1resolute.20260729.001044",
+      "ros-lyrical-rosidl-pycommon": "5.2.1-1resolute.20260729.001346",
+      "ros-lyrical-rosidl-runtime-c": "5.2.1-1resolute.20260831.165811",
+      "ros-lyrical-rosidl-runtime-cpp": "5.2.1-1resolute.20260831.170855",
+      "ros-lyrical-rosidl-typesupport-c": "3.4.2-3resolute.20260831.170637",
+      "ros-lyrical-rosidl-typesupport-cpp": "3.4.2-3resolute.20260831.172936",
+      "ros-lyrical-rosidl-typesupport-fastrtps-c": "3.9.7-1resolute.20260915.025643",
+      "ros-lyrical-rosidl-typesupport-fastrtps-cpp": "3.9.7-1resolute.20260915.025417",
+      "ros-lyrical-rosidl-typesupport-interface": "5.2.1-1resolute.20260728.175703",
+      "ros-lyrical-rosidl-typesupport-introspection-c": "5.2.1-1resolute.20260831.170356",
+      "ros-lyrical-rosidl-typesupport-introspection-cpp": "5.2.1-1resolute.20260831.172326",
+      "ros-lyrical-rpyutils": "0.7.2-3resolute.20260728.235551",
+      "ros-lyrical-sensor-msgs": "5.9.3-1resolute.20260915.042131",
+      "ros-lyrical-service-msgs": "2.4.5-1resolute.20260915.031315",
+      "ros-lyrical-spdlog-vendor": "1.8.0-3resolute.20260728.171059",
+      "ros-lyrical-statistics-msgs": "2.4.5-1resolute.20260915.033750",
+      "ros-lyrical-std-msgs": "5.9.3-1resolute.20260915.033923",
+      "ros-lyrical-tracetools": "8.10.2-1resolute.20260728.165820",
+      "ros-lyrical-type-description-interfaces": "2.4.5-1resolute.20260915.031448",
+      "ros-lyrical-uncrustify-vendor": "3.2.0-3resolute.20260728.171306",
+      "ros-lyrical-unique-identifier-msgs": "2.8.1-3resolute.20260915.030214"
+    },
+    "firmware_sensor_reads": {
+      "vcgencmd_measure_clock_arm": {
+        "argv": [
+          "vcgencmd",
+          "measure_clock",
+          "arm"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      },
+      "vcgencmd_measure_temp": {
+        "argv": [
+          "vcgencmd",
+          "measure_temp"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      }
+    },
+    "host_date_utc": "2026-11-10T09:32:21+00:00",
+    "loadavg": "0.93 0.62 0.95 1/214 8531",
+    "measured_source_revision": "ec20ae3ff3c50c581a892e79a53b0a8c1767b350",
+    "meminfo": "MemTotal:        3869652 kB\nMemFree:         1547200 kB\nMemAvailable:    3283932 kB\nBuffers:           75432 kB\nCached:          1704732 kB\nSwapCached:            0 kB\nActive:           293152 kB\nInactive:        1730032 kB\nActive(anon):     216284 kB\nInactive(anon):    27912 kB\nActive(file):      76868 kB\nInactive(file):  1702120 kB\nUnevictable:           0 kB\nMlocked:               0 kB\nSwapTotal:             0 kB\nSwapFree:              0 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:               904 kB\nWriteback:             0 kB\nAnonPages:        242840 kB\nMapped:           136584 kB\nShmem:              1272 kB\nKReclaimable:     149908 kB\nSlab:             224928 kB\nSReclaimable:     149908 kB\nSUnreclaim:        75020 kB\nKernelStack:        3456 kB\nPageTables:         4204 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:     1934824 kB\nCommitted_AS:     893012 kB\nVmallocTotal:   135288315904 kB\nVmallocUsed:       15252 kB\nVmallocChunk:          0 kB\nPercpu:             1856 kB\nAnonHugePages:    151552 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:     57344 kB\nFilePmdMapped:         0 kB\nCmaTotal:         524288 kB\nCmaFree:          510284 kB\nBalloon:               0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB",
+    "native_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "notes": [
+      "The Pi wall clock was reported unsynchronized on 2026-11-10; board timestamps are preserved as observed.",
+      "Benchmark elapsed-time measurements use CLOCK_MONOTONIC.",
+      "Build capture does not change services, CPU governors, board time, or CPU isolation.",
+      "vcgencmd throttling is attempted with a 3-second timeout; sysfs thermal and frequency data are captured separately."
+    ],
+    "optimization": "-O3 -DNDEBUG",
+    "os_release": {
+      "BUG_REPORT_URL": "https://bugs.launchpad.net/ubuntu/",
+      "HOME_URL": "https://www.ubuntu.com/",
+      "ID": "ubuntu",
+      "ID_LIKE": "debian",
+      "LOGO": "ubuntu-logo",
+      "NAME": "Ubuntu",
+      "PRETTY_NAME": "Ubuntu 26.04 LTS",
+      "PRIVACY_POLICY_URL": "https://www.ubuntu.com/legal/terms-and-policies/privacy-policy",
+      "SUPPORT_URL": "https://help.ubuntu.com/",
+      "UBUNTU_CODENAME": "resolute",
+      "VERSION": "26.04 (Resolute Raccoon)",
+      "VERSION_CODENAME": "resolute",
+      "VERSION_ID": "26.04"
+    },
+    "os_release_raw": "PRETTY_NAME=\"Ubuntu 26.04 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04 (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=resolute\nLOGO=ubuntu-logo",
+    "phase": "after-formal",
+    "planned_benchmark_cpu_affinity": [
+      2,
+      3
+    ],
+    "planned_benchmark_cpu_affinity_note": "Parent-run harness is planned with --cpus 2,3; runner metadata should retain actual endpoint affinity.",
+    "platform": "Linux-7.0.0-1009-raspi-aarch64-with-glibc2.43",
+    "process_cpu_affinity_at_capture": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "process_cpus_allowed_list_at_capture": "0-3",
+    "running_services": {
+      "argv": [
+        "systemctl",
+        "list-units",
+        "--type=service",
+        "--state=running",
+        "--no-legend",
+        "--no-pager"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "chrony.service              loaded active running chrony, an NTP client/server\n  cron.service                loaded active running Regular background program processing daemon\n  dbus.service                loaded active running D-Bus System Message Bus\n  fwupd.service               loaded active running Firmware update daemon\n  getty@tty1.service          loaded active running Getty on tty1\n  lttng-sessiond.service      loaded active running LTTng session daemon\n  ModemManager.service        loaded active running Modem Manager\n  netplan-wpa-wlan0.service   loaded active running WPA supplicant for netplan wlan0\n  networkd-dispatcher.service loaded active running Dispatcher daemon for systemd-networkd\n  NetworkManager.service      loaded active running Network Manager\n  polkit.service              loaded active running Authorization Manager\n  rsyslog.service             loaded active running System Logging Service\n  serial-getty@ttyS0.service  loaded active running Serial Getty on ttyS0\n  snapd.service               loaded active running Snap Daemon\n  ssh.service                 loaded active running OpenBSD Secure Shell server\n  systemd-journald.service    loaded active running Journal Service\n  systemd-logind.service      loaded active running User Login Management\n  systemd-networkd.service    loaded active running Network Management\n  systemd-resolved.service    loaded active running Network Name Resolution\n  systemd-timedated.service   loaded active running Time & Date Service\n  systemd-udevd.service       loaded active running Rule-based Manager for Device Events and Files\n  udisks2.service             loaded active running Disk Manager\n  unattended-upgrades.service loaded active running Unattended Upgrades Shutdown\n  user@1000.service           loaded active running User Manager for UID 1000\n  wpa_supplicant.service      loaded active running WPA supplicant"
+    },
+    "sdk": {
+      "architecture": "aarch64",
+      "binary_sha256": {
+        "libiceoryx2_cxx.a": "6e311d7ecb5baaf79d86c73ef82efe6d77115e91c7ad3e3e613268a35b79b17f",
+        "libiceoryx2_ffi_c.so": "16ba9442c777c78d0230c359cb6bee380cc7360b582c6464e9114f7bba079788",
+        "librbt_runtime.a": "36e7f299fecdd5e4dd7f31a050e2baf237ce4e9cae3927ed7df880e467f18fee"
+      },
+      "copied_from": "aidlux@192.168.1.232:/home/aidlux/.local/opt/rbt-sdk-0.8.0-linux-aarch64",
+      "framework_header_comparison": {
+        "all_match": true,
+        "headers": [
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/runtime.hpp",
+            "framework_sha256": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c",
+            "header": "runtime.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/runtime.hpp",
+            "sdk_sha256": "b78acfc227deed686cd8304912fa1b83df826762ef6ee2c1fbdf0596822bd81c"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/stream.hpp",
+            "framework_sha256": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091",
+            "header": "stream.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/stream.hpp",
+            "sdk_sha256": "500b9279149f9dc6581f63a6259c4872093869c8194519039567e8f15916a091"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/wait.hpp",
+            "framework_sha256": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11",
+            "header": "wait.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/wait.hpp",
+            "sdk_sha256": "62baaf5b54d37f618843b3504111761f8e14bee40b6eb7f7641fa3fc1dca4d11"
+          },
+          {
+            "framework_path": "/home/sw/rbt/sdk/cpp/include/rbt/types.hpp",
+            "framework_sha256": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f",
+            "header": "types.hpp",
+            "match": true,
+            "sdk_path": "sdk/rbt-sdk-0.8.0-linux-aarch64/include/rbt/types.hpp",
+            "sdk_sha256": "0f0437e9038e2562da7cbf3234d48eaf3a7217f6bc482ede9496154e973c933f"
+          }
+        ]
+      },
+      "iceoryx2_provenance": "fork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+      "relocation": {
+        "reason": "RBT CMake package and imported library paths are prefix-relative.",
+        "required": false,
+        "sdk_modified_after_copy": false
+      },
+      "sdk_path": "/home/pi/rbt-transport-bench-20261110/sdk/rbt-sdk-0.8.0-linux-aarch64",
+      "source_tree_manifest_matches_copy": true,
+      "source_tree_manifest_sha256": "eeb4e63e03e2f9ba30a832f26683d1b41d7a685625122f0280bd781357f96004",
+      "tree_file_count": 3288,
+      "tree_manifest_sha256": "eeb4e63e03e2f9ba30a832f26683d1b41d7a685625122f0280bd781357f96004",
+      "version": "0.8.0"
+    },
+    "sdk_build_stamp": "2026-10-22T04:09:10+08:00\nLinux kalama 5.15.148-qki-consolidate-android13-8-g46a318bb187f-dirty #1 SMP PREEMPT Thu Mar 26 13:55:25 CST 2026 aarch64 aarch64 aarch64 GNU/Linux\nglibc 2.35\nc++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nrustc 1.98.1 (48a229cea 2026-09-01)\nrbt 0.8.0\nSDK 0.8.0\ncomposer 0.8.0\nfork_version = \"0.10.0-rbt.2\"\nupstream_commit = \"135d09dd8b29f321f1725920d434864c4e512378\"\nsource_diff_sha256 = \"b0e90730fee476487b0c47dba0a272b0d0df9c5480629f8ac64849b8882d91d1\"\npatch_series_sha256 = \"1c9a653f7ef7b3d39164ab2d506d99ada52ce2e5525647efa6e978e7307fe1c5\"",
+    "sdk_source_commit": null,
+    "source_sha256": {
+      "harness/CMakeLists.txt": "c6cfeedcf57702ab114413180e69c9c7cf4d511bea01d58158b7382b1b7192de",
+      "harness/README.md": "50f0c33811bfc5b54e4c73bbd8be209960a2e4d8029ca725250a83b22daf258c",
+      "harness/common.hpp": "dcfd7898f143b8158c7a310fbf3f5e487aaa10982cad842bd69955cbfabc099e",
+      "harness/config/loan.xml": "c69077d93feea2fc6432f0dc14393f48c849513a057bf21bc8037a003d19e36f",
+      "harness/config/shm.xml": "b513bbcc1c63ceea3b1d75e31151745cd9a6bcfdfae71e70787ab41f9d6001a6",
+      "harness/generated/cpp/rbt/transport_bench.hpp": "c43b8793bccf92c983e80dd7e129d52cd4a75ce2000a971acbee5cf86a894979",
+      "harness/generated/descriptors/transport_bench.json": "dfa85cec01b4b9fbc068bcfcb5b5097ad14c432819c90267f06007979328c951",
+      "harness/generated/rust/transport_bench.rs": "e8b54a0b9ab42dc44e7c7cedfd71238c4bd6b1280d3ffb030d48308c6a0aff97",
+      "harness/msg/CloudFrame.msg": "c26dba7452e1a19fc2509f1d690290b80f27b629ffedb936e2078d0a02c4d1c9",
+      "harness/msg/ImuFrame.msg": "07f61cb689af826356f6035ef0e375fec88c9a053ca5e006080f4895060dfdb6",
+      "harness/msg/VideoFrame.msg": "74d42d06459ac4c0c9dd050d4909a04f90762643af95d31045a29d8403a1dc3f",
+      "harness/package.xml": "3e38172a0ebac27c4314553d7426d3e920a78bc7fa9ef4e6949265d424a4087a",
+      "harness/plot.py": "6b3978499567cab790a430548c6d6506f2e9948029e14309204b138db433556c",
+      "harness/rbt_endpoint.cpp": "9e6b8cb4bd128c5531ba8205d66d7b9de01ae68dc281c582cc8bb82d89fdc04f",
+      "harness/ros2_endpoint.cpp": "808c0d5b2d68a25f0fcee77fcbc522c8b43fd5c279d9690f4fa70ec0b2a8b3eb",
+      "harness/run.py": "7cea759560bba361eb6a3ed28b4115c5f87da195c1a862220fe3cefe920c8d5d",
+      "harness/standard_loan_probe.cpp": "7f633a6d079528195154086c1e22a2b588af429a1e97396a25b1806498386ecd",
+      "harness/summarize.py": "045fd61d8131b975874ec6416e5cbd2c65a77f3470c169d6e838fc77859e46a8",
+      "harness/test_runner.py": "1a8a19f31374a7074f947c52637dcdbc1aa4c87c444f12882324f6ced0c73980",
+      "harness/test_summarize.py": "ba290efafdd20b12908ba3e5a558c8b76db8915281a2e8dcc95451cd2b35b908",
+      "harness/types/transport_bench.rbt": "076ebb215aef1d045cb30e3d0cfc6a4d75e2303d33f407f67ee06887159e9cd8"
+    },
+    "thermal": {
+      "thermal_zone0": {
+        "celsius": 41.381,
+        "raw_temp": "41381",
+        "type": "cpu-thermal"
+      }
+    },
+    "throttling": {
+      "sysfs_candidates": {},
+      "vcgencmd_get_throttled": {
+        "argv": [
+          "vcgencmd",
+          "get_throttled"
+        ],
+        "returncode": 255,
+        "stderr": "",
+        "stdout": "Can't open device file: /dev/vcio\nTry creating a device file with: sudo mknod /dev/vcio c 100 0"
+      }
+    },
+    "tool_versions": {
+      "cmake": {
+        "argv": [
+          "cmake",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+      },
+      "g++": {
+        "argv": [
+          "g++",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+      },
+      "glibc": {
+        "argv": [
+          "ldd",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "ldd (Ubuntu GLIBC 2.43-2ubuntu2.4) 2.43\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper."
+      },
+      "python3": {
+        "argv": [
+          "python3",
+          "--version"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "Python 3.14.4"
+      },
+      "ros2_cli": {
+        "argv": [
+          "ros2",
+          "--help"
+        ],
+        "available": false,
+        "reason": "command not found"
+      }
+    },
+    "uname": {
+      "machine": "aarch64",
+      "node": "raspberrypi",
+      "processor": "",
+      "release": "7.0.0-1009-raspi",
+      "system": "Linux",
+      "version": "#9-Ubuntu SMP PREEMPT_DYNAMIC Mon Apr 13 16:37:04 UTC 2026"
+    },
+    "versions": {
+      "cmake": "4.2.3-2ubuntu2",
+      "fastcdr": "2.3.6-1resolute.20260728.232144",
+      "fastdds": "3.6.2-1resolute.20260729.000645",
+      "glibc": "2.43",
+      "gxx": "4:15.2.0-5ubuntu1",
+      "native": "0.10.0-rbt.2",
+      "python": "3.14.4",
+      "rbt_sdk": "0.8.0",
+      "rclcpp": "32.0.3-1resolute.20260915.071541",
+      "rmw_fastrtps_cpp": "9.4.10-1resolute.20260915.052709",
+      "rmw_fastrtps_shared_cpp": "9.4.10-1resolute.20260915.052019",
+      "rosidl_generator_cpp": "5.2.1-1resolute.20260831.172019",
+      "sensor_msgs": "5.9.3-1resolute.20260915.042131"
+    }
+  }
+}
