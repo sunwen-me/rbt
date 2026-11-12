@@ -88,6 +88,35 @@ allocator or runtime cause.
 
 ![Combined publisher/subscriber PSS](memory-pss.svg)
 
+## Fixed-load latency
+
+The retained [trial rows](trials.csv) also contain latency measurements from
+the same 27 formal trials. Values below are **P50 / P99 in microseconds**:
+each trial computes its own percentiles, and the table takes the median of
+the three corresponding percentile values. It does not pool all messages
+from the three trials into a single distribution. P50 describes the middle
+of a trial's latency distribution; P99 describes its 99th percentile, not
+its maximum latency.
+
+| Workload | RBT native loan | ROS SHM copy | ROS loan + Data Sharing |
+|---|---:|---:|---:|
+| IMU-sized, 256 B, 200 Hz | 88.5 / 131.2 | 198.9 / 387.4 | 144.7 / 275.1 |
+| Cloud-sized, 1.60 MB, 10 Hz | 103.5 / 253.4 | 3740.2 / 3859.4 | 201.1 / 616.2 |
+| Video-sized, 1080p RGB8, 30 Hz | 51.4 / 189.7 | 10417.2 / 11936.9 | 204.0 / 389.0 |
+
+The publisher writes the `CLOCK_MONOTONIC` timestamp **after filling the
+payload**, immediately before the publish path. The subscriber records its
+receive/take timestamp before validating the payload. These measurements
+include publishing, notification, scheduling, queueing and receive/take;
+they exclude earlier borrowing, default initialization and payload filling,
+as well as later subscriber validation. They therefore measure a different
+scope from the process CPU totals, which include initialization and filling.
+
+Both endpoints run as separate processes on the same board. The configured
+rates were 200 Hz, 10 Hz and 30 Hz, with 100% delivery in all formal trials.
+These are fixed-load latency results; maximum sustainable message rate and
+throughput were not measured.
+
 ## Why video CPU is higher than ROS loan
 
 The formal results retain the original default APIs: **RBT 12.80%, ROS loan

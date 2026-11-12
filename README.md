@@ -144,6 +144,16 @@ RBT SDK 0.8.0 与 ROS 2 Lyrical / Fast DDS 3.6.2，在 Intel Core Ultra 5 125H�
 
 视频 CPU 差距主要来自 RBT 默认 `loan()` 在填充数据前先初始化整帧；独立诊断确认了这次额外清零的成本。这里保留原始接口行为及正式成绩，诊断对照仅用于解释原因，详见[视频 CPU 原因与证据](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/README.md#why-video-cpu-is-higher-than-ros-loan)。
 
+同一组正式试验的延迟如下，单位为**微秒，P50 / P99**。先分别计算每轮的分位数，再取三轮对应分位数的中位数；不合并三轮消息计算。P50 为每轮延迟中位数，P99 为每轮延迟的第 99 百分位，不是最大延迟。
+
+| 工作负载 | RBT 原生 loan | ROS 2 SHM（拷贝） | ROS 2 loan + Data Sharing |
+|---|---:|---:|---:|
+| IMU 尺寸 · 256 B · 200 Hz | 88.5 / 131.2 | 198.9 / 387.4 | 144.7 / 275.1 |
+| 点云尺寸 · 1.60 MB · 10 Hz | 103.5 / 253.4 | 3740.2 / 3859.4 | 201.1 / 616.2 |
+| 原始视频尺寸 · 1080p RGB8 · 30 Hz | 51.4 / 189.7 | 10417.2 / 11936.9 | 204.0 / 389.0 |
+
+计时从发布端填好数据、写入单调时钟时间戳后开始，到订阅端取到数据、执行校验前结束；包含发布、通知、调度、排队和接收过程，不包含此前的借用、清零、填充和此后的订阅端校验。这是同机双进程在固定负载下的延迟，尚未测最大可持续频率或极限吞吐。[延迟口径与逐轮数据](benchmarks/ros2_transport/results/2026-11-10-raspberrypi4/README.md#fixed-load-latency)。
+
 <details>
 <summary>查看 Raspberry Pi 4 CPU 与内存图表</summary>
 
